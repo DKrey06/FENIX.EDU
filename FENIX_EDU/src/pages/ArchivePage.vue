@@ -1,5 +1,5 @@
 <template>
-  <div class="homepage">
+  <div class="archive-page">
     <div class="main-grid">
       <aside class="sidebar-panel">
         <div class="sidebar-header">
@@ -63,104 +63,47 @@
       </aside>
 
       <main class="main-content">
-        <div class="content-wrapper">
-          <div class="courses-section">
-            <div class="courses-header">
-              <h2 class="content-title">Дисциплины</h2>
-              <div class="courses-controls">
-                <div class="status-buttons">
-                  <button
-                    class="status-btn"
-                    :class="{ active: activeStatus === 'inProgress' }"
-                    @click="setActiveStatus('inProgress')"
-                  >
-                    В процессе
-                  </button>
-                  <button
-                    class="status-btn"
-                    :class="{ active: activeStatus === 'completed' }"
-                    @click="setActiveStatus('completed')"
-                  >
-                    Завершенные
-                  </button>
-                </div>
-                <div class="filter-container">
-                  <button class="filter-btn" @click="toggleFilter">
-                    Фильтр
-                  </button>
-                  <div class="filter-dropdown" v-if="showFilter">
-                    <div class="filter-options">
-                      <div
-                        class="filter-option"
-                        v-for="filter in filters"
-                        :key="filter.id"
-                      >
-                        <input
-                          type="checkbox"
-                          :id="'filter-' + filter.id"
-                          v-model="filter.selected"
-                          class="filter-checkbox"
-                        />
-                        <label
-                          :for="'filter-' + filter.id"
-                          class="filter-label"
-                        >
-                          <span class="filter-icon">{{
-                            getFilterIcon(filter.name)
-                          }}</span>
-                          {{ filter.name }}
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        <div class="courses-section">
+          <div class="courses-header">
+            <h2 class="content-title">Архив обучения</h2>
+            <div class="courses-controls">
+              <div class="status-buttons">
+                <button
+                  class="status-btn"
+                  :class="{ active: activeTab === 'inProgress' }"
+                  @click="setActiveTab('inProgress')"
+                >
+                  В процессе
+                </button>
+                <button
+                  class="status-btn"
+                  :class="{ active: activeTab === 'completed' }"
+                  @click="setActiveTab('completed')"
+                >
+                  Завершенные
+                </button>
               </div>
-            </div>
-
-            <div class="courses-container">
-              <div class="courses-wrapper">
-                <div class="courses-grid">
-                  <div
-                    v-for="course in filteredCourses"
-                    :key="course.id"
-                    class="course-card"
-                    @click="openCourse(course.id)"
-                  >
-                    <div class="course-image">
-                      <img
-                        src="@/assets/images/Course.png"
-                        alt="Course"
-                        class="course-img"
+              <div class="filter-container">
+                <button class="filter-btn" @click="toggleFilter">Фильтр</button>
+                <div class="filter-dropdown" v-if="showFilter">
+                  <div class="filter-options">
+                    <div
+                      class="filter-option"
+                      v-for="filter in filters"
+                      :key="filter.id"
+                    >
+                      <input
+                        type="checkbox"
+                        :id="'filter-' + filter.id"
+                        v-model="filter.selected"
+                        class="filter-checkbox"
                       />
-                    </div>
-                    <div class="course-header">
-                      <span class="course-status" :class="course.status">
-                        {{
-                          course.status === "inProgress"
-                            ? "В процессе"
-                            : "Завершен"
-                        }}
-                      </span>
-                    </div>
-                    <div class="course-body">
-                      <h3 class="course-title">{{ course.title }}</h3>
-                      <p class="course-description">
-                        {{ course.description }}
-                      </p>
-                      <div
-                        class="course-progress"
-                        v-if="course.status === 'inProgress'"
-                      >
-                        <div class="progress-bar">
-                          <div
-                            class="progress-fill"
-                            :style="{ width: course.progress + '%' }"
-                          ></div>
-                        </div>
-                        <span class="progress-text"
-                          >{{ course.progress }}%</span
-                        >
-                      </div>
+                      <label :for="'filter-' + filter.id" class="filter-label">
+                        <span class="filter-icon">{{
+                          getFilterIcon(filter.name)
+                        }}</span>
+                        {{ filter.name }}
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -168,36 +111,49 @@
             </div>
           </div>
 
-          <div class="right-sidebar">
-            <div class="info-card messenger-card">
-              <h3 class="info-title">Мессенджер</h3>
-              <div class="teachers-list">
+          <div class="courses-container">
+            <div class="courses-wrapper">
+              <div class="courses-grid">
                 <div
-                  v-for="teacher in teachers"
-                  :key="teacher.id"
-                  class="teacher-item"
+                  v-for="course in filteredCourses"
+                  :key="course.id"
+                  class="course-card"
+                  @click="openCourse(course.id)"
                 >
-                  <div class="teacher-avatar">{{ teacher.avatar }}</div>
-                  <div class="teacher-info">
-                    <div class="teacher-name">{{ teacher.name }}</div>
-                    <div class="teacher-status" :class="teacher.status">
-                      {{ teacher.status === "online" ? "В сети" : "Оффлайн" }}
+                  <div class="course-image">
+                    <img
+                      src="@/assets/images/Course.png"
+                      alt="Course"
+                      class="course-img"
+                    />
+                  </div>
+                  <div class="course-header">
+                    <span class="course-status" :class="course.status">
+                      {{
+                        course.status === "inProgress"
+                          ? "В процессе"
+                          : "Завершен"
+                      }}
+                    </span>
+                  </div>
+                  <div class="course-body">
+                    <h3 class="course-title">{{ course.title }}</h3>
+                    <p class="course-description">
+                      {{ course.description }}
+                    </p>
+                    <div
+                      class="course-progress"
+                      v-if="course.status === 'inProgress'"
+                    >
+                      <div class="progress-bar">
+                        <div
+                          class="progress-fill"
+                          :style="{ width: course.progress + '%' }"
+                        ></div>
+                      </div>
+                      <span class="progress-text">{{ course.progress }}%</span>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="info-card discussions-card">
-              <h3 class="info-title">Обсуждения</h3>
-              <div class="discussions-list">
-                <div
-                  v-for="discussion in discussions"
-                  :key="discussion.id"
-                  class="discussion-item"
-                >
-                  <div class="discussion-icon">💬</div>
-                  <div class="discussion-name">{{ discussion.name }}</div>
                 </div>
               </div>
             </div>
@@ -214,7 +170,7 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const activeStatus = ref("inProgress");
+const activeTab = ref("inProgress");
 const showFilter = ref(false);
 
 // Фильтры
@@ -335,27 +291,42 @@ const courses = ref([
     isPopular: true,
     isNew: false,
   },
-]);
-
-// Преподаватели
-const teachers = ref([
-  { id: 1, name: "Преподаватель 1", avatar: "👨‍🏫", status: "online" },
-  { id: 2, name: "Преподаватель 2", avatar: "👩‍🏫", status: "online" },
-  { id: 3, name: "Преподаватель 3", avatar: "👨‍🏫", status: "offline" },
-]);
-
-// Обсуждения
-const discussions = ref([
-  { id: 1, name: "Математический анализ" },
-  { id: 2, name: "Основы программирования" },
-  { id: 3, name: "Веб-дизайн" },
-  { id: 4, name: "Английский язык B2" },
+  {
+    id: 10,
+    title: "Философия",
+    description: "Основы философской мысли",
+    status: "completed",
+    progress: 100,
+    date: "2023-10-15",
+    isPopular: false,
+    isNew: false,
+  },
+  {
+    id: 11,
+    title: "Экономика",
+    description: "Основы экономической теории",
+    status: "completed",
+    progress: 100,
+    date: "2023-09-20",
+    isPopular: true,
+    isNew: false,
+  },
+  {
+    id: 12,
+    title: "Дизайн интерфейсов",
+    description: "Проектирование пользовательских интерфейсов",
+    status: "inProgress",
+    progress: 40,
+    date: "2024-03-05",
+    isPopular: false,
+    isNew: true,
+  },
 ]);
 
 // Фильтрованные курсы
 const filteredCourses = computed(() => {
   let result = courses.value.filter(
-    (course) => course.status === activeStatus.value
+    (course) => course.status === activeTab.value
   );
 
   // Применяем фильтры, если выбраны
@@ -397,8 +368,8 @@ const filteredCourses = computed(() => {
   return result;
 });
 
-const setActiveStatus = (status) => {
-  activeStatus.value = status;
+const setActiveTab = (tab) => {
+  activeTab.value = tab;
 };
 
 const toggleFilter = () => {
@@ -422,8 +393,9 @@ onUnmounted(() => {
   document.removeEventListener("click", closeFilterOnClickOutside);
 });
 
+// Открытие курса
 const openCourse = (courseId) => {
-  console.log("Открываем курс:", courseId);
+  console.log("Открываем курс из архива:", courseId);
   // Здесь надо добавить навигацию на страницу курса
 };
 
@@ -436,7 +408,7 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-.homepage {
+.archive-page {
   min-height: calc(100vh - 200px);
   padding: 2rem;
   background: #e7e7ec;
@@ -584,13 +556,6 @@ const handleLogout = () => {
 .main-content {
   display: flex;
   flex-direction: column;
-  width: 100%;
-}
-
-.content-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 2rem;
   width: 100%;
 }
 
@@ -893,111 +858,6 @@ const handleLogout = () => {
   min-width: 35px;
 }
 
-.right-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 320px;
-  flex-shrink: 0;
-}
-
-.info-card {
-  background: #f5d6d8;
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(212, 185, 187, 0.3);
-}
-
-.info-title {
-  font-size: 1.25rem;
-  color: #2f4156;
-  margin-bottom: 1.5rem;
-  font-weight: 600;
-}
-
-.teachers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.teacher-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
-  transition: background 0.3s;
-}
-
-.teacher-item:hover {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.teacher-avatar {
-  width: 40px;
-  height: 40px;
-  background: #d4b9bb;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.teacher-info {
-  flex: 1;
-}
-
-.teacher-name {
-  font-weight: 600;
-  color: #2f4156;
-  margin-bottom: 0.25rem;
-}
-
-.teacher-status {
-  font-size: 0.875rem;
-}
-
-.teacher-status.online {
-  color: #48bb78;
-}
-
-.teacher-status.offline {
-  color: #a0aec0;
-}
-
-.discussions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.discussion-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
-  transition: background 0.3s;
-}
-
-.discussion-item:hover {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.discussion-icon {
-  font-size: 1.25rem;
-}
-
-.discussion-name {
-  color: #2f4156;
-  font-weight: 500;
-}
-
 /* Адаптивность */
 @media (max-width: 1400px) {
   .courses-grid {
@@ -1015,15 +875,6 @@ const handleLogout = () => {
     gap: 1.5rem;
   }
 
-  .content-wrapper {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .right-sidebar {
-    width: 100%;
-  }
-
   .sidebar-panel {
     position: static;
     min-height: auto;
@@ -1037,7 +888,7 @@ const handleLogout = () => {
 }
 
 @media (max-width: 768px) {
-  .homepage {
+  .archive-page {
     padding: 1rem;
   }
 
