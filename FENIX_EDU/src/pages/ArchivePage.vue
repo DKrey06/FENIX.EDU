@@ -396,7 +396,7 @@ onUnmounted(() => {
 // Открытие курса
 const openCourse = (courseId) => {
   console.log("Открываем курс из архива:", courseId);
-  // Здесь надо добавить навигацию на страницу курса
+  router.push(`/courses/${courseId}/edit`);
 };
 
 // Выход из системы
@@ -406,7 +406,6 @@ const handleLogout = () => {
   router.push("/login");
 };
 </script>
-
 <style scoped>
 .archive-page {
   min-height: calc(100vh - 200px);

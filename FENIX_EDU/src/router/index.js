@@ -6,6 +6,7 @@ import ArchivePage from "../pages/ArchivePage.vue";
 import MessagesPage from "../pages/MessagesPage.vue";
 import LoginPage from "../pages/auth/LoginPage.vue";
 import RegisterPage from "../pages/auth/RegisterPage.vue";
+import CourseEditPage from "../pages/CourseEditPageFK.vue";
 
 const routes = [
   {
@@ -20,6 +21,25 @@ const routes = [
     component: CoursesPage,
     meta: { requiresAuth: true },
   },
+{
+  path: "/course/:id",
+  name: "CourseView",
+  component: () => import("../pages/CourseViewPage.vue"),
+  meta: { requiresAuth: true },
+},
+{
+  path: "/course/:id/edit",
+  name: "CourseViewEdit",
+  component: () => import("../pages/CourseViewEditPage.vue"),
+  meta: { requiresAuth: true },
+},
+{
+  path: "/courses/:id/edit",
+  name: "CourseEdit",
+  component: () => import("../pages/CourseEditPageFK.vue"),
+  meta: { requiresAuth: true },
+},
+
   {
     path: "/discussions",
     name: "Discussions",
@@ -64,15 +84,12 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
 
-  // Если маршрут требует авторизации и пользователь не авторизован
   if (to.meta.requiresAuth && !isAuthenticated) {
     next("/login");
   }
-  // Если маршрут только для гостей и пользователь авторизован
   else if (to.meta.guestOnly && isAuthenticated) {
     next("/");
   }
-  // В остальных случаях продолжаем навигацию
   else {
     next();
   }

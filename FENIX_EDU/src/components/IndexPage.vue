@@ -424,9 +424,8 @@ onUnmounted(() => {
 
 const openCourse = (courseId) => {
   console.log("Открываем курс:", courseId);
-  // Здесь надо добавить навигацию на страницу курса
+  router.push({ name: "CourseView", params: { id: courseId } });
 };
-
 // Выход из системы
 const handleLogout = () => {
   localStorage.removeItem("isAuthenticated");
