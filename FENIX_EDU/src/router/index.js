@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+
 import IndexPage from "../components/IndexPage.vue";
 import CoursesPage from "../pages/CoursesPage.vue";
 import DiscussionPage from "../pages/DiscussionPage.vue";
@@ -36,7 +38,7 @@ const routes = [
   {
     path: "/courses/:id/edit",
     name: "CourseEdit",
-    component: () => import("../pages/CourseEditPageFK.vue"),
+    component: CourseEditPage,
     meta: { requiresAuth: true },
   },
 
@@ -71,10 +73,6 @@ const routes = [
     meta: { guestOnly: true },
   },
   {
-    path: "/:pathMatch(.*)*",
-    redirect: "/",
-  },
-  {
     path: "/admin/users",
     name: "AdminUsers",
     component: () => import("../pages/AdminUsersPage.vue"),
@@ -82,6 +80,10 @@ const routes = [
       requiresAuth: true,
       requiresAdmin: true,
     },
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    redirect: "/",
   },
 ];
 
@@ -91,12 +93,14 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.isAuthenticated;
 
-  if (to.meta.requiresAdmin && authStore.user?.role !== "admin") {
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next("/");
     return;
   }
+
   if (to.meta.requiresAuth && !isAuthenticated) {
     next("/login");
   } else if (to.meta.guestOnly && isAuthenticated) {

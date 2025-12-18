@@ -24,8 +24,15 @@
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
                 <span class="input-icon">📧</span>
-                <input v-model="loginData.email" type="email" id="email" placeholder="student@fenixedu.ru" required
-                  class="form-input" :class="{ error: errors.email }" />
+                <input
+                  v-model="loginData.email"
+                  type="email"
+                  id="email"
+                  placeholder="student@fenixedu.ru"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.email }"
+                />
               </div>
               <div v-if="errors.email" class="error-message">
                 {{ errors.email }}
@@ -39,9 +46,20 @@
               </div>
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input v-model="loginData.password" :type="showPassword ? 'text' : 'password'" id="password"
-                  placeholder="Введите ваш пароль" required class="form-input" :class="{ error: errors.password }" />
-                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
+                <input
+                  v-model="loginData.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  id="password"
+                  placeholder="Введите ваш пароль"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.password }"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showPassword = !showPassword"
+                >
                   {{ showPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -51,7 +69,12 @@
             </div>
 
             <div class="remember-me">
-              <input type="checkbox" id="remember" v-model="loginData.remember" class="checkbox" />
+              <input
+                type="checkbox"
+                id="remember"
+                v-model="loginData.remember"
+                class="checkbox"
+              />
               <label for="remember" class="checkbox-label">Запомнить меня</label>
             </div>
 
@@ -63,7 +86,9 @@
             <div class="auth-footer">
               <p class="footer-text">
                 Ещё нет аккаунта?
-                <router-link to="/register" class="auth-link">Зарегистрироваться</router-link>
+                <router-link to="/register" class="auth-link"
+                  >Зарегистрироваться</router-link
+                >
               </p>
             </div>
           </form>
@@ -76,8 +101,10 @@
 <script setup>
 import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 // Данные формы
 const loginData = reactive({
@@ -127,24 +154,23 @@ const handleLogin = async () => {
 
   if (!isValid) return;
 
-  // Симуляция запроса к API
   isLoading.value = true;
 
   try {
-    // В реальном приложении здесь был бы запрос к API
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await authStore.login({
+      email: loginData.email,
+      password: loginData.password,
+    });
 
-    // Сохраняем авторизацию
-    localStorage.setItem("isAuthenticated", "true");
     if (loginData.remember) {
       localStorage.setItem("userEmail", loginData.email);
     }
 
-    // Перенаправляем на главную
     router.push("/");
   } catch (error) {
     console.error("Ошибка входа:", error);
-    errors.password = "Неверный email или пароль";
+    errors.password =
+      error.response?.data?.message || "Неверный email или пароль";
   } finally {
     isLoading.value = false;
   }

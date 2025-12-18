@@ -1,12 +1,14 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import axios from "axios";
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref(null);
+  const user = ref(localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null);
   const token = ref(localStorage.getItem("access_token"));
   const refreshToken = ref(localStorage.getItem("refresh_token"));
   const isLoading = ref(false);
+  const isAuthenticated = computed(() => !!token.value);
+  const isAdmin = computed(() => user.value?.role === "admin");
 
   // Создаем экземпляр axios с базовым URL
   const api = axios.create({
@@ -40,7 +42,7 @@ export const useAuthStore = defineStore("auth", () => {
 
         try {
           // Пытаемся обновить токен
-          const { data } = await refreshAccessToken();
+          const data = await refreshAccessToken();
 
           // Сохраняем новые токены
           token.value = data.access_token;
@@ -123,6 +125,12 @@ export const useAuthStore = defineStore("auth", () => {
       const response = await api.post("/api/auth/refresh", {
         refresh_token: refreshToken.value,
       });
+
+      token.value = response.data.access_token;
+      refreshToken.value = response.data.refresh_token;
+
+      localStorage.setItem("access_token", response.data.access_token);
+      localStorage.setItem("refresh_token", response.data.refresh_token);
 
       return response.data;
     } catch (error) {
@@ -211,13 +219,18 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user,
     token,
+    refreshToken,
     isLoading,
+    isAuthenticated,
+    isAdmin,
     register,
     login,
     logout,
     getCurrentUser,
     fetchAdminUsers,
     updateUserStatus,
+    refreshAccessToken,
     init,
+    api,
   };
 });

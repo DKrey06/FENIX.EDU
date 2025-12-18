@@ -25,8 +25,15 @@
                 <label for="firstName" class="form-label">Имя</label>
                 <div class="input-group">
                   <span class="input-icon">👤</span>
-                  <input v-model="registerData.firstName" type="text" id="firstName" placeholder="Иван" required
-                    class="form-input" :class="{ error: errors.firstName }" />
+                  <input
+                    v-model="registerData.firstName"
+                    type="text"
+                    id="firstName"
+                    placeholder="Иван"
+                    required
+                    class="form-input"
+                    :class="{ error: errors.firstName }"
+                  />
                 </div>
                 <div v-if="errors.firstName" class="error-message">
                   {{ errors.firstName }}
@@ -37,8 +44,15 @@
                 <label for="lastName" class="form-label">Фамилия</label>
                 <div class="input-group">
                   <span class="input-icon">👤</span>
-                  <input v-model="registerData.lastName" type="text" id="lastName" placeholder="Иванов" required
-                    class="form-input" :class="{ error: errors.lastName }" />
+                  <input
+                    v-model="registerData.lastName"
+                    type="text"
+                    id="lastName"
+                    placeholder="Иванов"
+                    required
+                    class="form-input"
+                    :class="{ error: errors.lastName }"
+                  />
                 </div>
                 <div v-if="errors.lastName" class="error-message">
                   {{ errors.lastName }}
@@ -50,8 +64,15 @@
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
                 <span class="input-icon">📧</span>
-                <input v-model="registerData.email" type="email" id="email" placeholder="student@fenixedu.ru" required
-                  class="form-input" :class="{ error: errors.email }" />
+                <input
+                  v-model="registerData.email"
+                  type="email"
+                  id="email"
+                  placeholder="student@fenixedu.ru"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.email }"
+                />
               </div>
               <div v-if="errors.email" class="error-message">
                 {{ errors.email }}
@@ -62,10 +83,20 @@
               <label for="password" class="form-label">Пароль</label>
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input v-model="registerData.password" :type="showPassword ? 'text' : 'password'" id="password"
-                  placeholder="Создайте надежный пароль" required class="form-input"
-                  :class="{ error: errors.password }" />
-                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
+                <input
+  v-model="registerData.password"
+  :type="showPassword ? 'text' : 'password'"
+  id="password"
+  placeholder="Создайте надежный пароль"
+  required
+  class="form-input"
+  :class="{ error: errors.password }"
+/>
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showPassword = !showPassword"
+                >
                   {{ showPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -84,7 +115,9 @@
                   <li :class="{ valid: /[0-9]/.test(registerData.password) }">
                     Цифру
                   </li>
-                  <li :class="{ valid: /[!@#$%^&*]/.test(registerData.password) }">
+                  <li
+                    :class="{ valid: /[!@#$%^&*]/.test(registerData.password) }"
+                  >
                     Специальный символ
                   </li>
                 </ul>
@@ -92,13 +125,25 @@
             </div>
 
             <div class="form-group">
-              <label for="confirmPassword" class="form-label">Подтверждение пароля</label>
+              <label for="confirmPassword" class="form-label"
+                >Подтверждение пароля</label
+              >
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input v-model="registerData.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'"
-                  id="confirmPassword" placeholder="Повторите пароль" required class="form-input"
-                  :class="{ error: errors.confirmPassword }" />
-                <button type="button" class="password-toggle" @click="showConfirmPassword = !showConfirmPassword">
+                <input
+                  v-model="registerData.confirmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  id="confirmPassword"
+                  placeholder="Повторите пароль"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.confirmPassword }"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                >
                   {{ showConfirmPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -110,11 +155,18 @@
             <div class="form-group">
               <label class="form-label">Роль</label>
               <div class="role-selector">
-                <label :class="[
-                  'role-option',
-                  { selected: registerData.role === 'student' },
-                ]">
-                  <input type="radio" v-model="registerData.role" value="student" class="role-radio" />
+                <label
+                  :class="[
+                    'role-option',
+                    { selected: registerData.role === 'student' },
+                  ]"
+                >
+                  <input
+                    type="radio"
+                    v-model="registerData.role"
+                    value="student"
+                    class="role-radio"
+                  />
                   <div class="role-content">
                     <span class="role-icon">👨‍🎓</span>
                     <div class="role-info">
@@ -125,11 +177,18 @@
                     </div>
                   </div>
                 </label>
-                <label :class="[
-                  'role-option',
-                  { selected: registerData.role === 'teacher' },
-                ]">
-                  <input type="radio" v-model="registerData.role" value="teacher" class="role-radio" />
+                <label
+                  :class="[
+                    'role-option',
+                    { selected: registerData.role === 'teacher' },
+                  ]"
+                >
+                  <input
+                    type="radio"
+                    v-model="registerData.role"
+                    value="teacher"
+                    class="role-radio"
+                  />
                   <div class="role-content">
                     <span class="role-icon">👨‍🏫</span>
                     <div class="role-info">
@@ -142,13 +201,18 @@
                 </label>
               </div>
             </div>
-            <!-- Добавить эти поля после ролей -->
+
             <div class="form-group" v-if="registerData.role === 'student'">
               <label for="course" class="form-label">Курс</label>
               <div class="input-group">
                 <span class="input-icon">📚</span>
-                <select v-model="registerData.course" id="course" required class="form-input"
-                  :class="{ error: errors.course }">
+                <select
+                  v-model="registerData.course"
+                  id="course"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.course }"
+                >
                   <option value="">Выберите курс</option>
                   <option value="1">1 курс</option>
                   <option value="2">2 курс</option>
@@ -165,8 +229,15 @@
               <label for="group" class="form-label">Группа</label>
               <div class="input-group">
                 <span class="input-icon">👥</span>
-                <input v-model="registerData.group" type="text" id="group" placeholder="Например: ИС-21-1" required
-                  class="form-input" :class="{ error: errors.group }" />
+                <input
+                  v-model="registerData.group"
+                  type="text"
+                  id="group"
+                  placeholder="Например: ИС-21-1"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.group }"
+                />
               </div>
               <div v-if="errors.group" class="error-message">
                 {{ errors.group }}
@@ -174,8 +245,13 @@
             </div>
 
             <div class="terms-agreement">
-              <input type="checkbox" id="terms" v-model="registerData.acceptTerms" class="checkbox"
-                :class="{ error: errors.acceptTerms }" />
+              <input
+                type="checkbox"
+                id="terms"
+                v-model="registerData.acceptTerms"
+                class="checkbox"
+                :class="{ error: errors.acceptTerms }"
+              />
               <label for="terms" class="checkbox-label">
                 Я соглашаюсь с
                 <a href="#" class="terms-link">условиями использования</a> и
@@ -207,8 +283,10 @@
 <script setup>
 import { ref, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 // Данные формы
 const registerData = reactive({
@@ -218,6 +296,8 @@ const registerData = reactive({
   password: "",
   confirmPassword: "",
   role: "student",
+  course: "",
+  group: "",
   acceptTerms: false,
 });
 
@@ -228,6 +308,8 @@ const errors = reactive({
   email: "",
   password: "",
   confirmPassword: "",
+  course: "",
+  group: "",
   acceptTerms: "",
 });
 
@@ -324,6 +406,17 @@ const handleRegister = async () => {
     isValid = false;
   }
 
+  if (registerData.role === "student") {
+    if (!registerData.course) {
+      errors.course = "Пожалуйста, выберите курс";
+      isValid = false;
+    }
+    if (!registerData.group.trim()) {
+      errors.group = "Пожалуйста, введите группу";
+      isValid = false;
+    }
+  }
+
   if (!registerData.acceptTerms) {
     errors.acceptTerms = "Необходимо принять условия использования";
     isValid = false;
@@ -331,39 +424,26 @@ const handleRegister = async () => {
 
   if (!isValid) return;
 
-  // Симуляция запроса к API
   isLoading.value = true;
 
   try {
-    // В реальном приложении здесь был бы запрос к API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Сохраняем данные пользователя
-    const userData = {
-      firstName: registerData.firstName,
-      lastName: registerData.lastName,
+    await authStore.register({
+      first_name: registerData.firstName,
+      last_name: registerData.lastName,
       email: registerData.email,
+      password: registerData.password,
+      password_confirmation: registerData.confirmPassword,
       role: registerData.role,
-      createdAt: new Date().toISOString(),
-    };
+      course: registerData.role === "student" ? registerData.course : null,
+      group: registerData.role === "student" ? registerData.group : null,
+    });
 
-    localStorage.setItem("userData", JSON.stringify(userData));
-    localStorage.setItem("isAuthenticated", "true");
-
-    // Показываем успешное сообщение
     alert("Регистрация успешна! Добро пожаловать в FENIX.EDU!");
-
-    // Перенаправляем на главную
     router.push("/");
   } catch (error) {
     console.error("Ошибка регистрации:", error);
-
-    // В реальном приложении здесь была бы обработка ошибок от сервера
-    if (error.message?.includes("email")) {
-      errors.email = "Этот email уже используется";
-    } else {
-      errors.email = "Произошла ошибка при регистрации";
-    }
+    errors.email =
+      error.response?.data?.message || "Произошла ошибка при регистрации";
   } finally {
     isLoading.value = false;
   }
@@ -377,6 +457,8 @@ const fillDemoData = () => {
   registerData.password = "Demo123!";
   registerData.confirmPassword = "Demo123!";
   registerData.role = "student";
+  registerData.course = "1";
+  registerData.group = "ИС-21-1";
   registerData.acceptTerms = true;
 };
 
