@@ -10,43 +10,23 @@
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
-              <router-link
-                to="/"
-                class="nav-item"
-                :class="{ active: $route.path === '/' }"
-              >
+              <router-link to="/" class="nav-item" :class="{ active: $route.path === '/' }">
                 <span class="nav-icon">🏠</span>
                 <span class="nav-text">Главная</span>
               </router-link>
-              <router-link
-                to="/archive"
-                class="nav-item"
-                :class="{ active: $route.path === '/archive' }"
-              >
+              <router-link to="/archive" class="nav-item" :class="{ active: $route.path === '/archive' }">
                 <span class="nav-icon">📚</span>
                 <span class="nav-text">Архив обучения</span>
               </router-link>
-              <router-link
-                to="/messages"
-                class="nav-item"
-                :class="{ active: $route.path === '/messages' }"
-              >
+              <router-link to="/messages" class="nav-item" :class="{ active: $route.path === '/messages' }">
                 <span class="nav-icon">💬</span>
                 <span class="nav-text">Мессенджер</span>
               </router-link>
-              <router-link
-                to="/discussions"
-                class="nav-item"
-                :class="{ active: $route.path === '/discussions' }"
-              >
+              <router-link to="/discussions" class="nav-item" :class="{ active: $route.path === '/discussions' }">
                 <span class="nav-icon">🗣️</span>
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link
-                to="/courses"
-                class="nav-item"
-                :class="{ active: $route.path === '/courses' }"
-              >
+              <router-link to="/courses" class="nav-item" :class="{ active: $route.path === '/courses' }">
                 <span class="nav-icon">📖</span>
                 <span class="nav-text">Курсы</span>
               </router-link>
@@ -68,18 +48,12 @@
             <h2 class="content-title">Архив обучения</h2>
             <div class="courses-controls">
               <div class="status-buttons">
-                <button
-                  class="status-btn"
-                  :class="{ active: activeTab === 'inProgress' }"
-                  @click="setActiveTab('inProgress')"
-                >
+                <button class="status-btn" :class="{ active: activeTab === 'inProgress' }"
+                  @click="setActiveTab('inProgress')">
                   В процессе
                 </button>
-                <button
-                  class="status-btn"
-                  :class="{ active: activeTab === 'completed' }"
-                  @click="setActiveTab('completed')"
-                >
+                <button class="status-btn" :class="{ active: activeTab === 'completed' }"
+                  @click="setActiveTab('completed')">
                   Завершенные
                 </button>
               </div>
@@ -87,17 +61,9 @@
                 <button class="filter-btn" @click="toggleFilter">Фильтр</button>
                 <div class="filter-dropdown" v-if="showFilter">
                   <div class="filter-options">
-                    <div
-                      class="filter-option"
-                      v-for="filter in filters"
-                      :key="filter.id"
-                    >
-                      <input
-                        type="checkbox"
-                        :id="'filter-' + filter.id"
-                        v-model="filter.selected"
-                        class="filter-checkbox"
-                      />
+                    <div class="filter-option" v-for="filter in filters" :key="filter.id">
+                      <input type="checkbox" :id="'filter-' + filter.id" v-model="filter.selected"
+                        class="filter-checkbox" />
                       <label :for="'filter-' + filter.id" class="filter-label">
                         <span class="filter-icon">{{
                           getFilterIcon(filter.name)
@@ -114,18 +80,10 @@
           <div class="courses-container">
             <div class="courses-wrapper">
               <div class="courses-grid">
-                <div
-                  v-for="course in filteredCourses"
-                  :key="course.id"
-                  class="course-card"
-                  @click="openCourse(course.id)"
-                >
+                <div v-for="course in filteredCourses" :key="course.id" class="course-card"
+                  @click="openCourse(course.id)">
                   <div class="course-image">
-                    <img
-                      src="@/assets/images/Course.png"
-                      alt="Course"
-                      class="course-img"
-                    />
+                    <img src="@/assets/images/Course.png" alt="Course" class="course-img" />
                   </div>
                   <div class="course-header">
                     <span class="course-status" :class="course.status">
@@ -141,15 +99,9 @@
                     <p class="course-description">
                       {{ course.description }}
                     </p>
-                    <div
-                      class="course-progress"
-                      v-if="course.status === 'inProgress'"
-                    >
+                    <div class="course-progress" v-if="course.status === 'inProgress'">
                       <div class="progress-bar">
-                        <div
-                          class="progress-fill"
-                          :style="{ width: course.progress + '%' }"
-                        ></div>
+                        <div class="progress-fill" :style="{ width: course.progress + '%' }"></div>
                       </div>
                       <span class="progress-text">{{ course.progress }}%</span>
                     </div>
@@ -824,7 +776,6 @@ const handleLogout = () => {
   flex: 1;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

@@ -24,15 +24,8 @@
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
                 <span class="input-icon">📧</span>
-                <input
-                  v-model="loginData.email"
-                  type="email"
-                  id="email"
-                  placeholder="student@fenixedu.ru"
-                  required
-                  class="form-input"
-                  :class="{ error: errors.email }"
-                />
+                <input v-model="loginData.email" type="email" id="email" placeholder="student@fenixedu.ru" required
+                  class="form-input" :class="{ error: errors.email }" />
               </div>
               <div v-if="errors.email" class="error-message">
                 {{ errors.email }}
@@ -46,20 +39,9 @@
               </div>
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input
-                  v-model="loginData.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  id="password"
-                  placeholder="Введите ваш пароль"
-                  required
-                  class="form-input"
-                  :class="{ error: errors.password }"
-                />
-                <button
-                  type="button"
-                  class="password-toggle"
-                  @click="showPassword = !showPassword"
-                >
+                <input v-model="loginData.password" :type="showPassword ? 'text' : 'password'" id="password"
+                  placeholder="Введите ваш пароль" required class="form-input" :class="{ error: errors.password }" />
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
                   {{ showPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -69,15 +51,8 @@
             </div>
 
             <div class="remember-me">
-              <input
-                type="checkbox"
-                id="remember"
-                v-model="loginData.remember"
-                class="checkbox"
-              />
-              <label for="remember" class="checkbox-label"
-                >Запомнить меня</label
-              >
+              <input type="checkbox" id="remember" v-model="loginData.remember" class="checkbox" />
+              <label for="remember" class="checkbox-label">Запомнить меня</label>
             </div>
 
             <button type="submit" class="submit-btn" :disabled="isLoading">
@@ -88,9 +63,7 @@
             <div class="auth-footer">
               <p class="footer-text">
                 Ещё нет аккаунта?
-                <router-link to="/register" class="auth-link"
-                  >Зарегистрироваться</router-link
-                >
+                <router-link to="/register" class="auth-link">Зарегистрироваться</router-link>
               </p>
             </div>
           </form>
@@ -429,6 +402,7 @@ fillDemoCredentials();
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

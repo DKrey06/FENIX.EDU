@@ -25,15 +25,8 @@
                 <label for="firstName" class="form-label">Имя</label>
                 <div class="input-group">
                   <span class="input-icon">👤</span>
-                  <input
-                    v-model="registerData.firstName"
-                    type="text"
-                    id="firstName"
-                    placeholder="Иван"
-                    required
-                    class="form-input"
-                    :class="{ error: errors.firstName }"
-                  />
+                  <input v-model="registerData.firstName" type="text" id="firstName" placeholder="Иван" required
+                    class="form-input" :class="{ error: errors.firstName }" />
                 </div>
                 <div v-if="errors.firstName" class="error-message">
                   {{ errors.firstName }}
@@ -44,15 +37,8 @@
                 <label for="lastName" class="form-label">Фамилия</label>
                 <div class="input-group">
                   <span class="input-icon">👤</span>
-                  <input
-                    v-model="registerData.lastName"
-                    type="text"
-                    id="lastName"
-                    placeholder="Иванов"
-                    required
-                    class="form-input"
-                    :class="{ error: errors.lastName }"
-                  />
+                  <input v-model="registerData.lastName" type="text" id="lastName" placeholder="Иванов" required
+                    class="form-input" :class="{ error: errors.lastName }" />
                 </div>
                 <div v-if="errors.lastName" class="error-message">
                   {{ errors.lastName }}
@@ -64,15 +50,8 @@
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
                 <span class="input-icon">📧</span>
-                <input
-                  v-model="registerData.email"
-                  type="email"
-                  id="email"
-                  placeholder="student@fenixedu.ru"
-                  required
-                  class="form-input"
-                  :class="{ error: errors.email }"
-                />
+                <input v-model="registerData.email" type="email" id="email" placeholder="student@fenixedu.ru" required
+                  class="form-input" :class="{ error: errors.email }" />
               </div>
               <div v-if="errors.email" class="error-message">
                 {{ errors.email }}
@@ -83,20 +62,10 @@
               <label for="password" class="form-label">Пароль</label>
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input
-                  v-model="registerData.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  id="password"
-                  placeholder="Создайте надежный пароль"
-                  required
-                  class="form-input"
-                  :class="{ error: errors.password }"
-                />
-                <button
-                  type="button"
-                  class="password-toggle"
-                  @click="showPassword = !showPassword"
-                >
+                <input v-model="registerData.password" :type="showPassword ? 'text' : 'password'" id="password"
+                  placeholder="Создайте надежный пароль" required class="form-input"
+                  :class="{ error: errors.password }" />
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
                   {{ showPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -115,9 +84,7 @@
                   <li :class="{ valid: /[0-9]/.test(registerData.password) }">
                     Цифру
                   </li>
-                  <li
-                    :class="{ valid: /[!@#$%^&*]/.test(registerData.password) }"
-                  >
+                  <li :class="{ valid: /[!@#$%^&*]/.test(registerData.password) }">
                     Специальный символ
                   </li>
                 </ul>
@@ -125,25 +92,13 @@
             </div>
 
             <div class="form-group">
-              <label for="confirmPassword" class="form-label"
-                >Подтверждение пароля</label
-              >
+              <label for="confirmPassword" class="form-label">Подтверждение пароля</label>
               <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input
-                  v-model="registerData.confirmPassword"
-                  :type="showConfirmPassword ? 'text' : 'password'"
-                  id="confirmPassword"
-                  placeholder="Повторите пароль"
-                  required
-                  class="form-input"
-                  :class="{ error: errors.confirmPassword }"
-                />
-                <button
-                  type="button"
-                  class="password-toggle"
-                  @click="showConfirmPassword = !showConfirmPassword"
-                >
+                <input v-model="registerData.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'"
+                  id="confirmPassword" placeholder="Повторите пароль" required class="form-input"
+                  :class="{ error: errors.confirmPassword }" />
+                <button type="button" class="password-toggle" @click="showConfirmPassword = !showConfirmPassword">
                   {{ showConfirmPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -155,18 +110,11 @@
             <div class="form-group">
               <label class="form-label">Роль</label>
               <div class="role-selector">
-                <label
-                  :class="[
-                    'role-option',
-                    { selected: registerData.role === 'student' },
-                  ]"
-                >
-                  <input
-                    type="radio"
-                    v-model="registerData.role"
-                    value="student"
-                    class="role-radio"
-                  />
+                <label :class="[
+                  'role-option',
+                  { selected: registerData.role === 'student' },
+                ]">
+                  <input type="radio" v-model="registerData.role" value="student" class="role-radio" />
                   <div class="role-content">
                     <span class="role-icon">👨‍🎓</span>
                     <div class="role-info">
@@ -177,18 +125,11 @@
                     </div>
                   </div>
                 </label>
-                <label
-                  :class="[
-                    'role-option',
-                    { selected: registerData.role === 'teacher' },
-                  ]"
-                >
-                  <input
-                    type="radio"
-                    v-model="registerData.role"
-                    value="teacher"
-                    class="role-radio"
-                  />
+                <label :class="[
+                  'role-option',
+                  { selected: registerData.role === 'teacher' },
+                ]">
+                  <input type="radio" v-model="registerData.role" value="teacher" class="role-radio" />
                   <div class="role-content">
                     <span class="role-icon">👨‍🏫</span>
                     <div class="role-info">
@@ -201,15 +142,40 @@
                 </label>
               </div>
             </div>
+            <!-- Добавить эти поля после ролей -->
+            <div class="form-group" v-if="registerData.role === 'student'">
+              <label for="course" class="form-label">Курс</label>
+              <div class="input-group">
+                <span class="input-icon">📚</span>
+                <select v-model="registerData.course" id="course" required class="form-input"
+                  :class="{ error: errors.course }">
+                  <option value="">Выберите курс</option>
+                  <option value="1">1 курс</option>
+                  <option value="2">2 курс</option>
+                  <option value="3">3 курс</option>
+                  <option value="4">4 курс</option>
+                </select>
+              </div>
+              <div v-if="errors.course" class="error-message">
+                {{ errors.course }}
+              </div>
+            </div>
+
+            <div class="form-group" v-if="registerData.role === 'student'">
+              <label for="group" class="form-label">Группа</label>
+              <div class="input-group">
+                <span class="input-icon">👥</span>
+                <input v-model="registerData.group" type="text" id="group" placeholder="Например: ИС-21-1" required
+                  class="form-input" :class="{ error: errors.group }" />
+              </div>
+              <div v-if="errors.group" class="error-message">
+                {{ errors.group }}
+              </div>
+            </div>
 
             <div class="terms-agreement">
-              <input
-                type="checkbox"
-                id="terms"
-                v-model="registerData.acceptTerms"
-                class="checkbox"
-                :class="{ error: errors.acceptTerms }"
-              />
+              <input type="checkbox" id="terms" v-model="registerData.acceptTerms" class="checkbox"
+                :class="{ error: errors.acceptTerms }" />
               <label for="terms" class="checkbox-label">
                 Я соглашаюсь с
                 <a href="#" class="terms-link">условиями использования</a> и
@@ -764,6 +730,7 @@ fillDemoData();
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

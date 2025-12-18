@@ -21,24 +21,24 @@ const routes = [
     component: CoursesPage,
     meta: { requiresAuth: true },
   },
-{
-  path: "/course/:id",
-  name: "CourseView",
-  component: () => import("../pages/CourseViewPage.vue"),
-  meta: { requiresAuth: true },
-},
-{
-  path: "/course/:id/edit",
-  name: "CourseViewEdit",
-  component: () => import("../pages/CourseViewEditPage.vue"),
-  meta: { requiresAuth: true },
-},
-{
-  path: "/courses/:id/edit",
-  name: "CourseEdit",
-  component: () => import("../pages/CourseEditPageFK.vue"),
-  meta: { requiresAuth: true },
-},
+  {
+    path: "/course/:id",
+    name: "CourseView",
+    component: () => import("../pages/CourseViewPage.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/course/:id/edit",
+    name: "CourseViewEdit",
+    component: () => import("../pages/CourseViewEditPage.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/courses/:id/edit",
+    name: "CourseEdit",
+    component: () => import("../pages/CourseEditPageFK.vue"),
+    meta: { requiresAuth: true },
+  },
 
   {
     path: "/discussions",
@@ -74,6 +74,15 @@ const routes = [
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },
+  {
+    path: "/admin/users",
+    name: "AdminUsers",
+    component: () => import("../pages/AdminUsersPage.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
 ];
 
 const router = createRouter({
@@ -84,13 +93,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
 
+  if (to.meta.requiresAdmin && authStore.user?.role !== "admin") {
+    next("/");
+    return;
+  }
   if (to.meta.requiresAuth && !isAuthenticated) {
     next("/login");
-  }
-  else if (to.meta.guestOnly && isAuthenticated) {
+  } else if (to.meta.guestOnly && isAuthenticated) {
     next("/");
-  }
-  else {
+  } else {
     next();
   }
 });
