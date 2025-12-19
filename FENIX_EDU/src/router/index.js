@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
-// Импортируем компоненты
 import LandingPage from "../pages/LandingPage.vue";
 import IndexPage from "../components/IndexPage.vue";
 import LoginPage from "../pages/auth/LoginPage.vue";
@@ -13,28 +12,23 @@ import MessagesPage from "../pages/MessagesPage.vue";
 import WaitingApprovalPage from "../pages/WaitingApprovalPage.vue";
 
 const routes = [
-  // Лендинг для неавторизованных пользователей
   {
     path: "/",
     name: "Landing",
     component: LandingPage,
     meta: { guestOnly: true },
   },
-  // Страница ожидания подтверждения - доступна всем
   {
     path: "/waiting-approval",
     name: "WaitingApproval",
     component: WaitingApprovalPage,
-    // НЕ требует аутентификации, может требовать только для определенных сценариев
   },
-  // Главная страница для авторизованных
   {
     path: "/dashboard",
     name: "Dashboard",
     component: IndexPage,
     meta: { requiresAuth: true },
   },
-  // Админ-панель с layout
   {
     path: "/admin",
     component: () => import("../pages/AdminLayout.vue"),
@@ -51,7 +45,6 @@ const routes = [
       },
     ],
   },
-  // Страницы авторизации
   {
     path: "/login",
     name: "Login",
@@ -64,7 +57,6 @@ const routes = [
     component: RegisterPage,
     meta: { guestOnly: true },
   },
-  // Другие защищенные маршруты
   {
     path: "/courses",
     name: "Courses",
@@ -76,6 +68,12 @@ const routes = [
     name: "CourseView",
     component: () => import("../pages/CourseViewPage.vue"),
     meta: { requiresAuth: true },
+  },
+  {
+    path: "/course/:id/edit",
+    name: "CourseViewEdit",
+    component: () => import("../pages/CourseViewEditPage.vue"),
+    meta: { requiresAuth: true, requiresTeacher: true },
   },
   {
     path: "/discussions",
@@ -95,7 +93,6 @@ const routes = [
     component: MessagesPage,
     meta: { requiresAuth: true },
   },
-  // Редирект для несуществующих маршрутов
   {
     path: "/:pathMatch(.*)*",
     redirect: "/",
@@ -112,15 +109,12 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = authStore.isAuthenticated;
   const user = authStore.user;
 
-  // Особый случай: waiting-approval доступен всем
   if (to.name === "WaitingApproval") {
     next();
     return;
   }
 
-  // Авторизованный пользователь на лендинге -> на дашборд
   if (to.path === "/" && isAuthenticated) {
-    // Проверяем статус пользователя
     if (user && user.status === "pending") {
       next("/waiting-approval");
     } else {
@@ -129,15 +123,12 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // Неавторизованный пользователь на защищенной странице -> на логин
   if (to.meta.requiresAuth && !isAuthenticated) {
     next("/login");
     return;
   }
 
-  // Авторизованный пользователь на гостевой странице -> на дашборд
   if (to.meta.guestOnly && isAuthenticated) {
-    // Проверяем статус пользователя
     if (user && user.status === "pending") {
       next("/waiting-approval");
     } else {
@@ -146,27 +137,22 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // Проверка админских прав
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next("/dashboard");
     return;
   }
 
-  // Проверка статуса пользователя для страниц, требующих авторизации
   if (to.meta.requiresAuth && isAuthenticated && user) {
-    // Если пользователь не подтвержден, перенаправляем на waiting-approval
     if (user.status === "pending") {
       next("/waiting-approval");
       return;
     }
 
-    // Если пользователь активен и пытается зайти на гостевую страницу, перенаправляем на dashboard
     if (user.status === "active" && to.meta.guestOnly) {
       next("/dashboard");
       return;
     }
 
-    // Если пользователь отклонен или заблокирован
     if (user.status === "rejected" || user.status === "blocked") {
       authStore.logout();
       next("/login");
@@ -174,7 +160,17 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // Если все проверки пройдены
+  if (to.meta.requiresTeacher) {
+    if (!isAuthenticated || !user || user.role !== "teacher") {
+      if (to.params.id) {
+        next({ name: "CourseView", params: { id: to.params.id } });
+      } else {
+        next("/dashboard");
+      }
+      return;
+    }
+  }
+
   next();
 });
 

@@ -2,52 +2,49 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-
-// Импортируем CSS если нужно
 import "./assets/main.css";
 
 const app = createApp(App);
 const pinia = createPinia();
 
-// Используем плагины
 app.use(pinia);
 app.use(router);
 
-// Глобальные обработчики ошибок
 app.config.errorHandler = (err, vm, info) => {
   console.error("Глобальная ошибка Vue:", err);
   console.error("Компонент:", vm);
   console.error("Информация:", info);
 };
 
-// Глобальные константы
 app.config.globalProperties.$API_URL = "http://127.0.0.1:8000/api";
 
-// Функция для проверки и обновления токена перед запросами
 const setupAuthInterceptor = () => {
   const originalFetch = window.fetch;
 
   window.fetch = async function (...args) {
     const [url, options = {}] = args;
 
-    // Пропускаем запросы к API авторизации
     if (typeof url === "string" && url.includes("/api/auth/")) {
       return originalFetch.apply(this, args);
     }
 
-    // Добавляем токен к запросам к API
     if (typeof url === "string" && url.includes("/api/")) {
       const token = localStorage.getItem("access_token");
       if (token) {
         options.headers = {
           ...options.headers,
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
           Accept: "application/json",
         };
+        if (
+          options.method &&
+          options.method.toUpperCase() !== "GET" &&
+          !(options.body instanceof FormData)
+        ) {
+          options.headers["Content-Type"] = "application/json";
+        }
       }
 
-      // Добавляем задержку для имитации сети в development
       if (import.meta.env.DEV) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
@@ -62,22 +59,17 @@ const setupAuthInterceptor = () => {
   };
 };
 
-// Настраиваем перехватчик fetch
 setupAuthInterceptor();
 
-// Монтируем приложение
 app.mount("#app");
 
-// Инициализируем auth store после монтирования
 import { useAuthStore } from "./stores/auth";
 
-// Даем Vue время на монтирование
 setTimeout(() => {
   try {
     const authStore = useAuthStore();
     console.log("Auth store инициализирован");
 
-    // Подписываемся на изменения роута для проверки аутентификации
     router.beforeEach((to, from, next) => {
       const requiresAuth = to.matched.some(
         (record) => record.meta.requiresAuth
@@ -101,7 +93,6 @@ setTimeout(() => {
       next();
     });
 
-    // Проверяем аутентификацию при первом запуске
     if (localStorage.getItem("access_token")) {
       authStore
         .getCurrentUser()
@@ -109,7 +100,6 @@ setTimeout(() => {
           if (user) {
             console.log("Пользователь аутентифицирован:", user.email);
 
-            // Если пользователь на странице логина/регистрации, перенаправляем на dashboard
             if (
               router.currentRoute.value.path === "/login" ||
               router.currentRoute.value.path === "/register" ||
@@ -120,7 +110,6 @@ setTimeout(() => {
           } else {
             console.log("Пользователь не аутентифицирован");
 
-            // Если на защищенной странице, перенаправляем на логин
             if (router.currentRoute.value.meta?.requiresAuth) {
               router.push("/login");
             }
@@ -135,7 +124,6 @@ setTimeout(() => {
   }
 }, 100);
 
-// Глобальный обработчик ошибок сети
 window.addEventListener("unhandledrejection", (event) => {
   if (
     event.reason &&
@@ -149,13 +137,10 @@ window.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-// Обработчик offline/online
 window.addEventListener("offline", () => {
   console.log("Приложение перешло в режим offline");
-  // Можно показать уведомление
 });
 
 window.addEventListener("online", () => {
   console.log("Приложение вернулось в онлайн режим");
-  // Можно обновить данные
 });

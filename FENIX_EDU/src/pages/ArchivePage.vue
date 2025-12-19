@@ -48,12 +48,18 @@
             <h2 class="content-title">Архив обучения</h2>
             <div class="courses-controls">
               <div class="status-buttons">
-                <button class="status-btn" :class="{ active: activeTab === 'inProgress' }"
-                  @click="setActiveTab('inProgress')">
+                <button
+                  class="status-btn"
+                  :class="{ active: activeTab === 'inProgress' }"
+                  @click="setActiveTab('inProgress')"
+                >
                   В процессе
                 </button>
-                <button class="status-btn" :class="{ active: activeTab === 'completed' }"
-                  @click="setActiveTab('completed')">
+                <button
+                  class="status-btn"
+                  :class="{ active: activeTab === 'completed' }"
+                  @click="setActiveTab('completed')"
+                >
                   Завершенные
                 </button>
               </div>
@@ -62,12 +68,14 @@
                 <div class="filter-dropdown" v-if="showFilter">
                   <div class="filter-options">
                     <div class="filter-option" v-for="filter in filters" :key="filter.id">
-                      <input type="checkbox" :id="'filter-' + filter.id" v-model="filter.selected"
-                        class="filter-checkbox" />
+                      <input
+                        type="checkbox"
+                        :id="'filter-' + filter.id"
+                        v-model="filter.selected"
+                        class="filter-checkbox"
+                      />
                       <label :for="'filter-' + filter.id" class="filter-label">
-                        <span class="filter-icon">{{
-                          getFilterIcon(filter.name)
-                        }}</span>
+                        <span class="filter-icon">{{ getFilterIcon(filter.name) }}</span>
                         {{ filter.name }}
                       </label>
                     </div>
@@ -80,8 +88,12 @@
           <div class="courses-container">
             <div class="courses-wrapper">
               <div class="courses-grid">
-                <div v-for="course in filteredCourses" :key="course.id" class="course-card"
-                  @click="openCourse(course.id)">
+                <div
+                  v-for="course in filteredCourses"
+                  :key="course.id"
+                  class="course-card"
+                  @click="openCourse(course.id)"
+                >
                   <div class="course-image">
                     <img src="@/assets/images/Course.png" alt="Course" class="course-img" />
                   </div>
@@ -97,16 +109,24 @@
                   <div class="course-body">
                     <h3 class="course-title">{{ course.title }}</h3>
                     <p class="course-description">
-                      {{ course.description }}
+                      {{ course.description || "Описание курса будет добавлено позже." }}
                     </p>
                     <div class="course-progress" v-if="course.status === 'inProgress'">
                       <div class="progress-bar">
-                        <div class="progress-fill" :style="{ width: course.progress + '%' }"></div>
+                        <div class="progress-fill" :style="{ width: (course.progress || 0) + '%' }"></div>
                       </div>
-                      <span class="progress-text">{{ course.progress }}%</span>
+                      <span class="progress-text">{{ course.progress || 0 }}%</span>
                     </div>
                   </div>
                 </div>
+
+                <div v-if="!isLoading && !filteredCourses.length" class="empty-structure">
+                  Курсы по выбранным параметрам не найдены.
+                </div>
+              </div>
+
+              <div v-if="isLoading" class="loading-text">
+                Загрузка курсов...
               </div>
             </div>
           </div>
@@ -119,13 +139,17 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+
+const API_URL = "http://127.0.0.1:8000/api";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const activeTab = ref("inProgress");
 const showFilter = ref(false);
+const isLoading = ref(false);
 
-// Фильтры
 const filters = ref([
   { id: 1, name: "Недавние", selected: false },
   { id: 2, name: "С высоким прогрессом", selected: false },
@@ -151,165 +175,55 @@ const getFilterIcon = (filterName) => {
   }
 };
 
-// Курсы с прогрессом и датами
-const courses = ref([
-  {
-    id: 1,
-    title: "Математический анализ",
-    description: "Основы математического анализа и дифференциальных уравнений",
-    status: "inProgress",
-    progress: 65,
-    date: "2024-01-15",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 2,
-    title: "Основы программирования",
-    description: "Введение в программирование на Python",
-    status: "inProgress",
-    progress: 85,
-    date: "2024-02-10",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 3,
-    title: "Веб-дизайн",
-    description: "Создание современных веб-интерфейсов",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-05",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 4,
-    title: "Английский язык B2",
-    description: "Деловой английский для IT-специалистов",
-    status: "inProgress",
-    progress: 45,
-    date: "2024-03-01",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 5,
-    title: "История искусств",
-    description: "Искусство от античности до современности",
-    status: "completed",
-    progress: 100,
-    date: "2023-11-20",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 6,
-    title: "Базы данных",
-    description: "Проектирование и оптимизация баз данных",
-    status: "inProgress",
-    progress: 30,
-    date: "2024-02-25",
-    isPopular: true,
-    isNew: true,
-  },
-  {
-    id: 7,
-    title: "Алгоритмы и структуры данных",
-    description: "Основные алгоритмы и структуры данных",
-    status: "inProgress",
-    progress: 70,
-    date: "2024-01-30",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 8,
-    title: "Мобильная разработка",
-    description: "Создание мобильных приложений",
-    status: "inProgress",
-    progress: 55,
-    date: "2024-02-15",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 9,
-    title: "Машинное обучение",
-    description: "Введение в искусственный интеллект",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-20",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 10,
-    title: "Философия",
-    description: "Основы философской мысли",
-    status: "completed",
-    progress: 100,
-    date: "2023-10-15",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 11,
-    title: "Экономика",
-    description: "Основы экономической теории",
-    status: "completed",
-    progress: 100,
-    date: "2023-09-20",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 12,
-    title: "Дизайн интерфейсов",
-    description: "Проектирование пользовательских интерфейсов",
-    status: "inProgress",
-    progress: 40,
-    date: "2024-03-05",
-    isPopular: false,
-    isNew: true,
-  },
-]);
+// реальные курсы из бэкенда
+const courses = ref([]);
 
-// Фильтрованные курсы
+// подготавливаем курс к отображению (добавляем статус/прогресс, если их нет)
+const mapBackendCourse = (c) => {
+  const status = c.status || "inProgress"; // пока можно держать всё "в процессе"
+  const progress = c.progress ?? 0;
+  const createdAt = c.created_at ? new Date(c.created_at) : new Date();
+
+  return {
+    id: c.id,
+    title: c.name,
+    description: c.description,
+    status,
+    progress,
+    // поля для фильтров
+    date: createdAt.toISOString().slice(0, 10),
+    isPopular: false,
+    isNew: false,
+  };
+};
+
 const filteredCourses = computed(() => {
   let result = courses.value.filter(
     (course) => course.status === activeTab.value
   );
 
-  // Применяем фильтры, если выбраны
   const selectedFilters = filters.value
     .filter((f) => f.selected)
     .map((f) => f.name);
 
   if (selectedFilters.length > 0) {
-    // Фильтрация по выбранным критериям
     result = result.filter((course) => {
       return selectedFilters.some((filter) => {
         switch (filter) {
-          case "Недавние":
-            // Показываем курсы, добавленные в последние 30 дней
+          case "Недавние": {
             const courseDate = new Date(course.date);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             return courseDate >= thirtyDaysAgo;
-
+          }
           case "С высоким прогрессом":
-            return course.progress >= 70;
-
+            return (course.progress || 0) >= 70;
           case "С низким прогрессом":
-            return course.progress <= 30;
-
+            return (course.progress || 0) <= 30;
           case "Популярные":
             return course.isPopular;
-
           case "Новые":
             return course.isNew;
-
           default:
             return true;
         }
@@ -338,26 +252,60 @@ const closeFilterOnClickOutside = (event) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener("click", closeFilterOnClickOutside);
+  await loadCourses();
 });
+
 onUnmounted(() => {
   document.removeEventListener("click", closeFilterOnClickOutside);
 });
 
-// Открытие курса
-const openCourse = (courseId) => {
-  console.log("Открываем курс из архива:", courseId);
-  router.push(`/courses/${courseId}/edit`);
+const loadCourses = async () => {
+  try {
+    isLoading.value = true;
+    const token = localStorage.getItem("access_token");
+
+    const resp = await fetch(`${API_URL}/courses`, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        Accept: "application/json",
+      },
+    });
+
+    if (!resp.ok) {
+      console.error("Ошибка загрузки курсов:", resp.status);
+      return;
+    }
+
+    const data = await resp.json();
+    // мапим каждый курс
+    courses.value = data.map(mapBackendCourse);
+  } catch (e) {
+    console.error("Ошибка загрузки курсов:", e);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-// Выход из системы
+const openCourse = (courseId) => {
+  const user = authStore.user;
+
+  if (user?.role === "teacher") {
+    router.push({ name: "CourseViewEdit", params: { id: courseId } });
+  } else {
+    router.push({ name: "CourseView", params: { id: courseId } });
+  }
+};
+
 const handleLogout = () => {
   localStorage.removeItem("isAuthenticated");
   localStorage.removeItem("userData");
+  localStorage.removeItem("access_token");
   router.push("/login");
 };
 </script>
+
 <style scoped>
 .archive-page {
   min-height: calc(100vh - 200px);

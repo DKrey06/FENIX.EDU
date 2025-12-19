@@ -157,160 +157,178 @@ onUnmounted(() => {
   }
 });
 </script>
-
 <style scoped>
 .waiting-page {
   min-height: 100vh;
+  padding: 3rem 1rem;
+  background: linear-gradient(135deg, #f6fbff, #e7e7ec);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
 }
 
 .container {
-  background: white;
-  border-radius: 20px;
-  padding: 3rem;
-  max-width: 500px;
+  max-width: 640px;
   width: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.5rem 2.5rem 2rem;
+  box-shadow: 0 16px 40px rgba(47, 65, 86, 0.18);
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-h1 {
-  color: #2d3748;
-  margin-bottom: 2rem;
-  font-size: 2rem;
-}
-
-.status-card {
-  padding: 2rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  border: 2px solid #e2e8f0;
-}
-
-.status-card.pending {
-  background: #fefcbf;
-  border-color: #f6e05e;
-}
-
-.status-card.active {
-  background: #c6f6d5;
-  border-color: #48bb78;
-}
-
-.status-card.rejected {
-  background: #fed7d7;
-  border-color: #f56565;
-}
-
-.status-card.blocked {
-  background: #e2e8f0;
-  border-color: #a0aec0;
-}
-
-.status-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
 }
 
+h1 {
+  font-size: 1.9rem;
+  margin: 0 0 0.5rem;
+  color: #2f4156;
+  font-weight: 700;
+}
+
+.container > p {
+  margin: 0;
+  color: #4a5568;
+}
+
+.status-card {
+  margin-top: 1.75rem;
+  padding: 1.5rem 1.75rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  text-align: left;
+}
+
+.status-card.pending {
+  background: #fff7e6;
+  border: 1px solid #f6ad55;
+}
+
+.status-card.active {
+  background: #e6fffa;
+  border: 1px solid #38b2ac;
+}
+
+.status-card.rejected {
+  background: #ffe6e6;
+  border: 1px solid #f56565;
+}
+
+.status-card.blocked {
+  background: #edf2f7;
+  border: 1px solid #a0aec0;
+}
+
+.status-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
 .status-info h2 {
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.2rem;
   color: #2d3748;
+  font-weight: 600;
 }
 
 .status-info p {
+  margin: 0 0 0.5rem;
   color: #4a5568;
-  margin-bottom: 1rem;
+  font-size: 0.95rem;
 }
 
 .user-info {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  text-align: left;
-  margin-top: 1rem;
-}
-
-.user-info p {
-  margin: 0.5rem 0;
-  color: #4a5568;
-}
-
-.instructions {
-  text-align: left;
-  background: #f7fafc;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-
-.instructions h3 {
-  margin-bottom: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #cbd5e0;
+  font-size: 0.92rem;
   color: #2d3748;
 }
 
-.instructions ul {
-  padding-left: 1.5rem;
-  color: #4a5568;
+.user-info p {
+  margin: 0.2rem 0;
 }
 
-.instructions li {
-  margin-bottom: 0.5rem;
+.instructions {
+  margin-top: 1.75rem;
+  text-align: left;
+}
+
+.instructions h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  color: #2f4156;
+  font-weight: 600;
+}
+
+.instructions ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+.instructions li + li {
+  margin-top: 0.25rem;
 }
 
 .actions {
+  margin-top: 2rem;
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   justify-content: center;
-  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.refresh-btn,
+.logout-btn {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .refresh-btn {
-  background: #4299e1;
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s;
+  background: #2f4156;
+  color: #ffffff;
+  border-color: #2f4156;
 }
 
 .refresh-btn:hover {
-  background: #3182ce;
+  background: #233244;
 }
 
 .logout-btn {
-  background: #e53e3e;
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s;
+  background: #ffffff;
+  color: #2f4156;
+  border-color: #cbd5e0;
 }
 
 .logout-btn:hover {
-  background: #c53030;
+  border-color: #2f4156;
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.18);
 }
 
 .contact {
-  padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  margin-top: 1.75rem;
+  font-size: 0.9rem;
+  color: #718096;
 }
 
 .contact-link {
-  color: #667eea;
-  font-weight: 600;
+  display: inline-block;
+  margin-top: 0.25rem;
+  color: #2f4156;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -318,13 +336,26 @@ h1 {
   text-decoration: underline;
 }
 
-@media (max-width: 576px) {
-  .container {
-    padding: 2rem;
+@media (max-width: 640px) {
+  .waiting-page {
+    padding: 1.5rem 1rem;
   }
 
-  .actions {
+  .container {
+    padding: 1.8rem 1.4rem 1.5rem;
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .status-card {
     flex-direction: column;
+  }
+
+  .status-icon {
+    margin-bottom: 0.25rem;
   }
 }
 </style>

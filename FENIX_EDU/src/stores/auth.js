@@ -9,18 +9,18 @@ export const useAuthStore = defineStore("auth", () => {
   const isAdmin = ref(false);
   const isCheckingAuth = ref(false);
   const lastAuthCheck = ref(0);
-  const authCheckInterval = 5 * 60 * 1000; // 5 минут между проверками
+  const authCheckInterval = 5 * 60 * 1000;
 
-  // Инициализация состояния аутентификации при загрузке приложения
+  const isTeacher = computed(() => user.value?.role === "teacher");
+  const isStudent = computed(() => user.value?.role === "student");
+
   const init = () => {
     const token = localStorage.getItem("access_token");
     if (token) {
-      // Проверяем, когда была последняя проверка
       const now = Date.now();
       if (now - lastAuthCheck.value > authCheckInterval) {
         getCurrentUser().catch(console.error);
       } else {
-        // Используем данные из localStorage если проверка была недавно
         try {
           const savedUser = localStorage.getItem("user_data");
           if (savedUser) {
@@ -38,8 +38,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Получение информации о текущем пользователе
-  // В auth.js исправьте метод getCurrentUser:
   const getCurrentUser = async () => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -47,7 +45,6 @@ export const useAuthStore = defineStore("auth", () => {
       return null;
     }
 
-    // Предотвращаем множественные одновременные запросы
     if (isCheckingAuth.value) {
       return user.value;
     }
@@ -72,7 +69,6 @@ export const useAuthStore = defineStore("auth", () => {
       console.log("Ответ от /auth/me:", response.status, response.statusText);
 
       if (response.ok) {
-        // Парсим ответ
         const data = await response.json();
         console.log("Данные пользователя получены:", data);
 
@@ -82,12 +78,10 @@ export const useAuthStore = defineStore("auth", () => {
           user.value?.role === "admin" ||
           user.value?.role === "department_head";
 
-        // Устанавливаем статус по умолчанию если его нет
         if (!user.value.status) {
           user.value.status = "pending";
         }
 
-        // Сохраняем данные пользователя в localStorage
         localStorage.setItem("user_data", JSON.stringify(user.value));
         lastAuthCheck.value = Date.now();
 
@@ -100,11 +94,9 @@ export const useAuthStore = defineStore("auth", () => {
 
         if (response.status === 401) {
           console.log("Токен истек или невалиден");
-          // Пробуем обновить токен
           try {
             const newToken = await refreshToken();
             if (newToken) {
-              // Повторяем запрос с новым токеном
               return getCurrentUser();
             }
           } catch (refreshError) {
@@ -125,8 +117,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Вход пользователя
-  // Изменяем метод login
   const login = async (email, password) => {
     try {
       console.log(
@@ -136,7 +126,6 @@ export const useAuthStore = defineStore("auth", () => {
         password ? "***" : "нет"
       );
 
-      // Убедитесь, что отправляете правильный формат
       const loginData = {
         email: email,
         password: password,
@@ -156,7 +145,6 @@ export const useAuthStore = defineStore("auth", () => {
       console.log("Статус ответа:", response.status);
       console.log("Заголовки ответа:", response.headers);
 
-      // Получим полный текст ответа для отладки
       const responseText = await response.text();
       console.log("Тело ответа:", responseText);
 
@@ -174,7 +162,6 @@ export const useAuthStore = defineStore("auth", () => {
         throw new Error(errorDetail || `Ошибка входа: ${response.status}`);
       }
 
-      // Парсим JSON после проверки статуса
       const data = JSON.parse(responseText);
       console.log("Успешный ответ от сервера:", data);
 
@@ -184,7 +171,6 @@ export const useAuthStore = defineStore("auth", () => {
           localStorage.setItem("refresh_token", data.refresh_token);
         }
 
-        // Получаем данные пользователя
         await getCurrentUser();
 
         return data;
@@ -196,8 +182,7 @@ export const useAuthStore = defineStore("auth", () => {
       throw error;
     }
   };
-  // Регистрация пользователя
-  // В auth.js, в методе register, добавьте более детальную обработку:
+
   const register = async (userData) => {
     try {
       console.log("Отправка данных регистрации:", JSON.stringify(userData));
@@ -224,7 +209,6 @@ export const useAuthStore = defineStore("auth", () => {
           };
         }
 
-        // Создаем ошибку с полным ответом для детальной обработки
         const error = new Error(
           errorData.message || `Ошибка регистрации: ${response.status}`
         );
@@ -241,12 +225,10 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       console.error("Ошибка регистрации:", error);
 
-      // Если ошибка уже имеет response, просто пробрасываем ее
       if (error.response) {
         throw error;
       }
 
-      // Иначе создаем структурированную ошибку
       const structuredError = new Error(error.message || "Ошибка регистрации");
       structuredError.response = {
         status: 0,
@@ -256,11 +238,9 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Выход
   const logout = () => {
     clearUserData();
 
-    // Перенаправляем на страницу логина если не на ней
     if (
       window.location.pathname !== "/login" &&
       window.location.pathname !== "/"
@@ -269,7 +249,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Очистка данных пользователя
   const clearUserData = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
@@ -280,7 +259,6 @@ export const useAuthStore = defineStore("auth", () => {
     lastAuthCheck.value = 0;
   };
 
-  // Обновление токена
   const refreshToken = async () => {
     try {
       const refreshToken = localStorage.getItem("refresh_token");
@@ -322,7 +300,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Функции для админской панели
   const fetchAdminUsers = async (params = {}) => {
     try {
       const token = localStorage.getItem("access_token");
@@ -331,12 +308,10 @@ export const useAuthStore = defineStore("auth", () => {
         throw new Error("Токен не найден");
       }
 
-      // Подготавливаем параметры запроса
       const queryParams = new URLSearchParams();
       queryParams.append("page", params.page || 1);
       queryParams.append("limit", params.limit || 20);
 
-      // Добавляем только непустые параметры
       if (params.status && params.status.trim() !== "") {
         queryParams.append("status", params.status);
       }
@@ -365,7 +340,6 @@ export const useAuthStore = defineStore("auth", () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Пробуем обновить токен и повторить запрос
           const newToken = await refreshToken();
           if (newToken) {
             return fetchAdminUsers(params);
@@ -525,6 +499,7 @@ export const useAuthStore = defineStore("auth", () => {
       throw error;
     }
   };
+
   const checkAccountStatus = async () => {
     try {
       const token = localStorage.getItem("access_token");
@@ -558,13 +533,14 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Автоматически вызываем init при создании store
   init();
 
   return {
     user: computed(() => user.value),
     isAuthenticated: computed(() => isAuthenticated.value),
     isAdmin: computed(() => isAdmin.value),
+    isTeacher,
+    isStudent,
     init,
     getCurrentUser,
     login,

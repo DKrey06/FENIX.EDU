@@ -8,27 +8,33 @@
         </router-link>
       </div>
       <div class="header-content">
-        <h1 class="course-title">{{ currentCourse.title }}</h1>
+        <h1 class="course-title">{{ currentCourse.title || currentCourse.name }}</h1>
         <div class="course-meta">
           <div class="meta-item">
-            <span class="meta-icon">{{ currentCourse.status === 'inProgress' ? '📚' : '✅' }}</span>
-            <span class="meta-text">{{ currentCourse.status === 'inProgress' ? 'В процессе' : 'Завершен' }}</span>
+            <span class="meta-dot" :class="currentCourse.status === 'inProgress' ? 'dot-progress' : 'dot-done'"></span>
+            <span class="meta-text">
+              {{ currentCourse.status === "inProgress" ? "В процессе" : "Завершен" }}
+            </span>
           </div>
           <div class="meta-item" v-if="currentCourse.status === 'inProgress'">
-            <span class="meta-icon">📊</span>
-            <span class="meta-text">{{ currentCourse.progress }}% прогресс</span>
+            <span class="meta-label">Прогресс:</span>
+            <span class="meta-value">{{ currentCourse.progress || 0 }}%</span>
           </div>
         </div>
       </div>
     </div>
 
     <div class="course-content">
+      <!-- левая колонка: разделы -->
       <div class="course-sections">
         <div class="sections-header">
           <h2 class="sections-title">Содержание курса</h2>
-          <button class="edit-btn" @click="handleEdit">
-            <span class="edit-icon">✏️</span>
-            Редактировать
+          <button
+            v-if="canEdit"
+            class="edit-btn"
+            @click="handleEdit"
+          >
+            ✏️ Редактировать
           </button>
         </div>
 
@@ -44,25 +50,76 @@
                 <span class="section-number">Раздел {{ section.number }}.</span>
                 <span class="section-name">{{ section.title }}</span>
               </div>
-              <span class="section-toggle">{{ activeSection === section.id ? "−" : "+" }}</span>
+              <span class="section-toggle">
+                {{ activeSection === section.id ? "Скрыть" : "Показать" }}
+              </span>
             </div>
+
             <div class="subsection-list" v-if="activeSection === section.id">
               <div
                 v-for="subsection in section.subsections"
                 :key="subsection.id"
                 class="subsection-item"
               >
-                <span class="subsection-icon">{{ subsection.icon }}</span>
-                <span class="subsection-name">{{ subsection.title }}</span>
-                <div class="subsection-status" :class="subsection.status">
-                  {{ subsection.statusIcon }}
+                <div class="subsection-main">
+                  <span class="subsection-icon">{{ subsection.icon }}</span>
+                  <div class="subsection-text">
+                    <div class="subsection-name">{{ subsection.title }}</div>
+                    <div class="subsection-description">
+                      Задание раздела и прикреплённые материалы.
+                    </div>
+                  </div>
+                  <span class="subsection-status" :class="subsection.status">
+                    {{ statusText(subsection.status) }}
+                  </span>
                 </div>
+
+                <!-- файлы задания -->
+                <div
+                  v-if="subsection.files && subsection.files.length"
+                  class="subsection-files"
+                >
+                  <div
+                    v-for="file in subsection.files"
+                    :key="file.id"
+                    class="file-row"
+                  >
+                    <button
+                      class="file-thumb"
+                      v-if="isImage(file.name) && file.url"
+                      type="button"
+                      @click="openImage(API_BASE + file.url, file.name)"
+                    >
+                      <img
+                        :src="API_BASE + file.url"
+                        :alt="file.name"
+                        class="thumb-img"
+                      />
+                    </button>
+                    <div class="file-icon" v-else>
+                      📄
+                    </div>
+
+                    <div class="file-info">
+                      <div class="file-name">{{ file.name }}</div>
+                      <div class="file-meta">
+                        {{ formatFileSize(file.size) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- /файлы задания -->
               </div>
             </div>
+          </div>
+
+          <div v-if="!sections.length" class="empty-structure">
+            Структура курса пока не настроена.
           </div>
         </div>
       </div>
 
+      <!-- правая колонка: статистика -->
       <div class="course-stats-panel">
         <div class="course-stats">
           <div class="stats-title">Статистика курса</div>
@@ -70,7 +127,7 @@
             <div class="stat-item">
               <div class="stat-icon">📊</div>
               <div class="stat-content">
-                <div class="stat-value">{{ currentCourse.progress }}%</div>
+                <div class="stat-value">{{ currentCourse.progress || 0 }}%</div>
                 <div class="stat-label">Прогресс курса</div>
               </div>
             </div>
@@ -99,106 +156,165 @@
         </div>
       </div>
     </div>
+
+    <!-- полноэкранный просмотр изображения -->
+    <div
+      v-if="previewImageUrl"
+      class="image-modal"
+      @click.self="closeImage"
+    >
+      <div class="image-modal-content">
+        <img :src="previewImageUrl" :alt="previewImageName" />
+        <div class="image-modal-footer">
+          <span class="image-name">{{ previewImageName }}</span>
+          <button class="image-close-btn" type="button" @click="closeImage">
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
 
-const route = useRoute()
-const router = useRouter()
+const API_URL = "http://127.0.0.1:8000/api";
+const API_BASE = "http://127.0.0.1:8000";
 
-const activeSection = ref(1)
-const currentCourse = ref({})
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
-const courses = [
-  {
-    id: 1,
-    title: "Математический анализ",
-    description: "Основы математического анализа и дифференциальных уравнений",
-    status: "inProgress",
-    progress: 65,
-    date: "2024-01-15",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 2,
-    title: "Основы программирования",
-    description: "Введение в программирование на Python",
-    status: "inProgress",
-    progress: 85,
-    date: "2024-02-10",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 3,
-    title: "Веб-дизайн",
-    description: "Создание современных веб-интерфейсов",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-05",
-    isPopular: false,
-    isNew: false,
-  }
-]
+const activeSection = ref(1);
+const currentCourse = ref({});
+const sections = ref([]);
 
-const sections = ref([
-  {
-    id: 1,
-    number: 'I',
-    title: 'Введение',
-    subsections: [
-      { id: 1, icon: '📝', title: 'Тест 1', status: 'status-completed', statusIcon: '✓' },
-      { id: 2, icon: '📄', title: 'Лекция 1', status: 'status-completed', statusIcon: '✓' },
-      { id: 3, icon: '🎬', title: 'Видео 1', status: 'status-pending', statusIcon: '▶' }
-    ]
-  },
-  {
-    id: 2,
-    number: 'II',
-    title: 'Основная часть',
-    subsections: [
-      { id: 4, icon: '📚', title: 'Материалы', status: 'status-pending', statusIcon: '▶' },
-      { id: 5, icon: '🔬', title: 'Практика', status: 'status-locked', statusIcon: '🔒' }
-    ]
-  }
-])
+const previewImageUrl = ref(null);
+const previewImageName = ref("");
 
 const totalSubsections = computed(() => {
-  return sections.value.reduce((total, section) => total + section.subsections.length, 0)
-})
+  return sections.value.reduce(
+    (total, section) => total + (section.subsections?.length || 0),
+    0
+  );
+});
+
+const canEdit = computed(() => authStore.user?.role === "teacher");
 
 const toggleSection = (sectionId) => {
-  activeSection.value = activeSection.value === sectionId ? null : sectionId
-}
+  activeSection.value = activeSection.value === sectionId ? null : sectionId;
+};
 
 const handleEdit = () => {
-  router.push({ name: 'CourseViewEdit', params: { id: route.params.id } })
-}
+  if (!canEdit.value) return;
+  router.push({ name: "CourseViewEdit", params: { id: route.params.id } });
+};
 
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return "0 Б";
+  const k = 1024;
+  const sizes = ["Б", "КБ", "МБ", "ГБ"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+const isImage = (name) => {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return (
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".png") ||
+    lower.endsWith(".gif") ||
+    lower.endsWith(".webp")
+  );
+};
+
+const statusText = (status) => {
+  switch (status) {
+    case "status-completed":
+      return "Завершено";
+    case "status-pending":
+      return "В ожидании";
+    case "status-locked":
+      return "Закрыто";
+    default:
+      return "";
+  }
+};
+
+const openImage = (url, name) => {
+  previewImageUrl.value = url;
+  previewImageName.value = name || "";
+};
+
+const closeImage = () => {
+  previewImageUrl.value = null;
+  previewImageName.value = "";
+};
+
+const loadCourse = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const courseId = route.params.id;
+
+    const coursesResp = await fetch(`${API_URL}/courses`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (coursesResp.ok) {
+      const list = await coursesResp.json();
+      const course = list.find((c) => String(c.id) === String(courseId));
+      if (course) currentCourse.value = course;
+    }
+
+    const structResp = await fetch(`${API_URL}/courses/${courseId}/structure`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (structResp.ok) {
+      const data = await structResp.json();
+      sections.value = data.sections || [];
+      if (sections.value.length) {
+        activeSection.value = sections.value[0].id;
+      }
+    } else {
+      sections.value = [];
+    }
+  } catch (e) {
+    console.error("Ошибка загрузки курса/структуры:", e);
+    sections.value = [];
+  }
+};
 
 onMounted(() => {
-  const courseId = parseInt(route.params.id)
-  const course = courses.find(c => c.id === courseId)
-  if (course) {
-    currentCourse.value = course
-  }
-})
+  loadCourse();
+});
 </script>
 
 <style scoped>
 .course-detail-page {
+  min-height: calc(100vh - 200px);
   padding: 2rem;
-  background: #f7fafc;
-  min-height: 100vh;
+  background: #f6fbff;
 }
 
-/* Шапка курса */
+/* шапка курса */
+
 .course-header {
-  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
 }
 
 .breadcrumb {
@@ -209,53 +325,80 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: #667eea;
+  color: #2f4156;
   text-decoration: none;
   font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  transition: all 0.3s;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(47, 65, 86, 0.08);
+  transition: all 0.2s;
 }
 
 .breadcrumb-link:hover {
-  background: rgba(102, 126, 234, 0.1);
+  background: #f6fbff;
+  border-color: #2f4156;
 }
 
 .breadcrumb-icon {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .header-content {
-  background: white;
-  padding: 2rem;
+  background: #ffffff;
+  padding: 1.5rem 2rem;
   border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .course-title {
-  font-size: 2.5rem;
-  color: #2d3748;
-  margin-bottom: 1rem;
+  font-size: 1.8rem;
+  color: #2f4156;
   font-weight: 700;
+  margin: 0;
 }
 
 .course-meta {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
 .meta-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #f7fafc;
-  border-radius: 8px;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  background: #f8fafc;
+  border-radius: 999px;
+  font-size: 0.9rem;
 }
 
-.meta-icon {
-  font-size: 1.2rem;
+.meta-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.dot-progress {
+  background: #f59e0b;
+}
+
+.dot-done {
+  background: #10b981;
+}
+
+.meta-label {
+  color: #6b7280;
+}
+
+.meta-value {
+  font-weight: 600;
+  color: #111827;
 }
 
 .meta-text {
@@ -263,420 +406,300 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* Основной контент */
+/* основной контент */
+
 .course-content {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 3fr 1.4fr;
   gap: 2rem;
-  margin-bottom: 2rem;
 }
 
-/* Левая колонка - Разделы */
+/* левая колонка — разделы */
+
 .course-sections {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .sections-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
 }
 
 .sections-title {
-  font-size: 1.5rem;
-  color: #2d3748;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin: 0;
 }
 
 .edit-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #2f4156;
+  background: #ffffff;
+  color: #2f4156;
+  font-size: 0.9rem;
   font-weight: 500;
-  transition: all 0.3s;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .edit-btn:hover {
-  background: #5a67d8;
-  transform: translateY(-1px);
-}
-
-.edit-icon {
-  font-size: 1.1rem;
+  background: #2f4156;
+  color: #ffffff;
 }
 
 .sections-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
 }
 
 .section-item {
-  border: 2px solid #e2e8f0;
   border-radius: 12px;
+  border: 1px solid #e2e8f0;
   overflow: hidden;
-  transition: all 0.3s;
+  background: #f9fbff;
+  transition: all 0.2s;
 }
 
 .section-item.section-active {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  border-color: #2f4156;
+  box-shadow: 0 4px 14px rgba(47, 65, 86, 0.14);
 }
 
 .section-header {
-  padding: 1rem 1.25rem;
-  background: #f7fafc;
-  cursor: pointer;
+  padding: 0.9rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background 0.3s;
-}
-
-.section-header:hover {
-  background: #edf2f7;
+  cursor: pointer;
 }
 
 .section-title {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: baseline;
 }
 
 .section-number {
   font-weight: 600;
-  color: #667eea;
-  font-size: 1rem;
+  color: #2f4156;
+  text-transform: uppercase;
 }
 
 .section-name {
   font-weight: 500;
   color: #2d3748;
-  font-size: 1.1rem;
 }
 
 .section-toggle {
-  font-size: 1.5rem;
-  color: #4a5568;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 0.9rem;
+  color: #4b5563;
 }
 
+/* задания */
+
 .subsection-list {
-  padding: 1rem 1.25rem 1rem 3.5rem;
-  background: white;
+  padding: 0.7rem 1.1rem 0.9rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.7rem;
 }
 
 .subsection-item {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: #f7fafc;
-  border-radius: 8px;
-  transition: all 0.3s;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: all 0.2s;
 }
 
 .subsection-item:hover {
   background: #edf2f7;
-  transform: translateX(4px);
+  transform: translateX(3px);
+}
+
+.subsection-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
 }
 
 .subsection-icon {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  margin-top: 0.1rem;
+}
+
+.subsection-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .subsection-name {
-  flex: 1;
-  color: #4a5568;
+  font-size: 0.95rem;
+  color: #111827;
   font-weight: 500;
+}
+
+.subsection-description {
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.35;
 }
 
 .subsection-status {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.9rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-self: center;
 }
 
 .status-completed {
-  background: #48bb78;
-  color: white;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .status-pending {
-  background: #ed8936;
-  color: white;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status-locked {
-  background: #cbd5e0;
-  color: #4a5568;
+  background: #e5e7eb;
+  color: #374151;
 }
 
-.add-section-btn {
-  margin-top: 1rem;
-  padding: 0.875rem 1rem;
-  background: #edf2f7;
-  border: 2px dashed #cbd5e0;
-  border-radius: 12px;
-  color: #4a5568;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: all 0.3s;
-}
+/* файлы задания */
 
-.add-section-btn:hover {
-  background: #e2e8f0;
-  border-color: #a0aec0;
-}
-
-.add-icon {
-  font-size: 1.2rem;
-}
-
-/* Правая колонка - Рейтинг */
-.course-rating {
+.subsection-files {
+  padding-left: 2.2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.4rem;
 }
 
-.rating-header {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.rating-title {
+.file-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 1.5rem;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
+  gap: 0.6rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  background: #f9fafb;
 }
 
-.rating-icon {
-  font-size: 1.5rem;
-}
-
-.rating-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.rating-total {
-  color: #718096;
-  font-weight: 500;
-}
-
-.rating-list {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-  max-height: 500px;
-}
-
-.rating-item {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  transition: all 0.3s;
-}
-
-.rating-item:hover {
-  background: #f7fafc;
-}
-
-.rating-item:last-child {
-  border-bottom: none;
-}
-
-.student-rank {
-  min-width: 36px;
-}
-
-.rank-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #edf2f7;
-  color: #4a5568;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.rank-gold {
-  background: linear-gradient(135deg, #f6e05e, #d69e2e);
-  color: white;
-}
-
-.rank-silver {
-  background: linear-gradient(135deg, #a0aec0, #718096);
-  color: white;
-}
-
-.rank-bronze {
-  background: linear-gradient(135deg, #ed8936, #c05621);
-  color: white;
-}
-
-.student-avatar {
-  min-width: 40px;
-}
-
-.avatar-circle {
-  width: 40px;
-  height: 40px;
-  background: #667eea;
-  color: white;
-  border-radius: 50%;
+.file-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.9rem;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
-.student-info {
-  min-width: 0;
-}
-
-.student-name {
-  font-weight: 500;
-  color: #2d3748;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.student-group {
-  font-size: 0.875rem;
-  color: #718096;
-}
-
-.student-score {
-  min-width: 120px;
-  text-align: right;
-}
-
-.score-value {
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.score-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
+.thumb-img {
+  width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  border-radius: 3px;
-  transition: width 0.5s ease;
+  object-fit: cover;
 }
 
-.progress-text {
-  font-size: 0.875rem;
-  color: #718096;
-  min-width: 40px;
+.file-icon {
+  width: 40px;
+  height: 32px;
+  border-radius: 6px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #374151;
 }
 
-/* Статистика курса */
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.file-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* правая колонка — статистика */
+
+.course-stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .course-stats {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .stats-title {
-  font-size: 1.25rem;
-  color: #2d3748;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2f4156;
   margin-bottom: 1rem;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f7fafc;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
   border-radius: 12px;
-  transition: all 0.3s;
-}
-
-.stat-item:hover {
-  background: #edf2f7;
-  transform: translateY(-2px);
+  background: #f6fbff;
 }
 
 .stat-icon {
-  font-size: 1.5rem;
-  width: 48px;
-  height: 48px;
-  background: white;
+  font-size: 1.4rem;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .stat-content {
@@ -684,122 +707,104 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 0.25rem;
+  color: #2f4156;
 }
 
 .stat-label {
-  font-size: 0.875rem;
-  color: #718096;
+  font-size: 0.85rem;
+  color: #4a5568;
 }
 
-/* Панель быстрых действий */
-.quick-actions {
+/* модалка полноэкранного просмотра изображения */
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #e2e8f0;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
 }
 
-.action-btn {
-  flex: 1;
+.image-modal-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+}
+
+.image-modal-content img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #020617;
+}
+
+.image-modal-footer {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  padding: 1.5rem 1rem;
-  background: white;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.3s;
+  font-size: 0.9rem;
+  color: #e5e7eb;
 }
 
-.action-btn:hover {
-  background: #667eea;
-  border-color: #667eea;
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+.image-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
 }
 
-.action-btn:hover .action-icon,
-.action-btn:hover .action-text {
-  color: white;
-}
-
-.action-icon {
-  font-size: 2rem;
-  color: #667eea;
-  transition: color 0.3s;
-}
-
-.action-text {
+.image-close-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  color: #4a5568;
-  transition: color 0.3s;
+  cursor: pointer;
+  background: #f97316;
+  color: #ffffff;
 }
 
-/* Адаптивность */
-@media (max-width: 1200px) {
+/* адаптив */
+
+@media (max-width: 992px) {
   .course-content {
     grid-template-columns: 1fr;
   }
 
-  .course-rating {
-    grid-column: 1;
+  .course-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .header-content {
+    width: 100%;
   }
 }
 
 @media (max-width: 768px) {
   .course-detail-page {
-    padding: 1rem;
+    padding: 1.25rem;
   }
 
   .course-title {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
 
-  .course-meta {
+  .sections-header {
     flex-direction: column;
-    gap: 1rem;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-actions {
-    flex-wrap: wrap;
-  }
-
-  .action-btn {
-    flex: calc(50% - 0.5rem);
-  }
-}
-
-@media (max-width: 480px) {
-  .rating-item {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    gap: 0.5rem;
-  }
-
-  .student-score {
-    grid-column: 2;
-    grid-row: 2;
-    text-align: left;
-    margin-top: 0.5rem;
-  }
-
-  .quick-actions {
-    flex-direction: column;
-  }
-
-  .action-btn {
-    width: 100%;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
 }
 </style>
