@@ -9,7 +9,7 @@
         <div class="status-info">
           <h2>{{ statusTitle }}</h2>
           <p>{{ statusMessage }}</p>
-          <div v-if="user" class="user-info"> <!-- Изменили userData на user -->
+          <div v-if="user" class="user-info">
             <p><strong>Имя:</strong> {{ user.full_name }}</p>
             <p><strong>Email:</strong> {{ user.email }}</p>
             <p><strong>Роль:</strong> {{ roleLabel }}</p>
@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <div class="instructions" v-if="status === 'pending'"> <!-- Изменили user.status на status -->
+      <div class="instructions" v-if="status === 'pending'">
         <h3>Что дальше?</h3>
         <ul>
           <li>Администратор проверит ваши данные</li>
@@ -49,14 +49,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const user = ref(null); // Переименовали userData в user
+const user = ref(null);
 const status = ref('pending');
+let intervalId = null;
 
 const statusConfig = {
   pending: {
@@ -94,27 +95,38 @@ const roleLabel = computed(() => {
   const labels = {
     student: 'Студент',
     teacher: 'Преподаватель',
-    admin: 'Администратор'
+    admin: 'Администратор',
+    department_head: 'Руководитель отдела'
   };
   return labels[user.value?.role] || user.value?.role;
 });
 
-const checkStatus = async () => {
-  try {
-    const response = await authStore.checkAccountStatus();
-    status.value = response.status;
-    user.value = response.user; // Теперь user содержит данные пользователя
+const checkStatus = () => {
+  // Для неаутентифицированных пользователей просто показываем ожидание
+  if (!authStore.isAuthenticated) {
+    status.value = 'pending';
+    // Попытаемся получить данные из localStorage если они есть
+    try {
+      const savedUser = localStorage.getItem('user_data');
+      if (savedUser) {
+        user.value = JSON.parse(savedUser);
+        status.value = user.value.status || 'pending';
+      }
+    } catch (error) {
+      console.error('Ошибка чтения данных пользователя:', error);
+    }
+    return;
+  }
+
+  // Для аутентифицированных пользователей проверяем статус
+  const currentUser = authStore.user;
+  if (currentUser) {
+    status.value = currentUser.status || 'pending';
+    user.value = currentUser;
 
     // Если аккаунт активен - перенаправляем на дашборд
-    if (response.status === 'active') {
+    if (status.value === 'active') {
       router.push('/dashboard');
-    }
-  } catch (error) {
-    console.error('Ошибка проверки статуса:', error);
-    // Если ошибка 403 (нет доступа) - перенаправляем на логин
-    if (error.response?.status === 403) {
-      authStore.logout();
-      router.push('/login');
     }
   }
 };
@@ -128,12 +140,21 @@ const logout = () => {
   router.push('/login');
 };
 
+const goToLogin = () => {
+  router.push('/login');
+};
+
 onMounted(() => {
-  // Проверяем статус при загрузке страницы
   checkStatus();
 
   // Автоматически обновляем статус каждые 30 секунд
-  setInterval(checkStatus, 30000);
+  intervalId = setInterval(checkStatus, 30000);
+});
+
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
 });
 </script>
 
@@ -260,6 +281,11 @@ h1 {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.refresh-btn:hover {
+  background: #3182ce;
 }
 
 .logout-btn {
@@ -270,6 +296,11 @@ h1 {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #c53030;
 }
 
 .contact {
@@ -281,6 +312,10 @@ h1 {
   color: #667eea;
   font-weight: 600;
   text-decoration: none;
+}
+
+.contact-link:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 576px) {

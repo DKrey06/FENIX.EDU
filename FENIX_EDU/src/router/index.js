@@ -20,11 +20,12 @@ const routes = [
     component: LandingPage,
     meta: { guestOnly: true },
   },
+  // Страница ожидания подтверждения - доступна всем
   {
     path: "/waiting-approval",
     name: "WaitingApproval",
     component: WaitingApprovalPage,
-    meta: { requiresAuth: true },
+    // НЕ требует аутентификации, может требовать только для определенных сценариев
   },
   // Главная страница для авторизованных
   {
@@ -41,14 +42,13 @@ const routes = [
     children: [
       {
         path: "",
-        redirect: "/admin/users", // Перенаправление с /admin на /admin/users
+        redirect: "/admin/users",
       },
       {
         path: "users",
         name: "AdminUsers",
         component: () => import("../pages/AdminUsersPage.vue"),
       },
-      // другие админские страницы можно добавить здесь
     ],
   },
   // Страницы авторизации
@@ -110,10 +110,22 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   const isAuthenticated = authStore.isAuthenticated;
+  const user = authStore.user;
+
+  // Особый случай: waiting-approval доступен всем
+  if (to.name === "WaitingApproval") {
+    next();
+    return;
+  }
 
   // Авторизованный пользователь на лендинге -> на дашборд
   if (to.path === "/" && isAuthenticated) {
-    next("/dashboard");
+    // Проверяем статус пользователя
+    if (user && user.status === "pending") {
+      next("/waiting-approval");
+    } else {
+      next("/dashboard");
+    }
     return;
   }
 
@@ -125,7 +137,12 @@ router.beforeEach((to, from, next) => {
 
   // Авторизованный пользователь на гостевой странице -> на дашборд
   if (to.meta.guestOnly && isAuthenticated) {
-    next("/dashboard");
+    // Проверяем статус пользователя
+    if (user && user.status === "pending") {
+      next("/waiting-approval");
+    } else {
+      next("/dashboard");
+    }
     return;
   }
 
@@ -133,6 +150,28 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next("/dashboard");
     return;
+  }
+
+  // Проверка статуса пользователя для страниц, требующих авторизации
+  if (to.meta.requiresAuth && isAuthenticated && user) {
+    // Если пользователь не подтвержден, перенаправляем на waiting-approval
+    if (user.status === "pending") {
+      next("/waiting-approval");
+      return;
+    }
+
+    // Если пользователь активен и пытается зайти на гостевую страницу, перенаправляем на dashboard
+    if (user.status === "active" && to.meta.guestOnly) {
+      next("/dashboard");
+      return;
+    }
+
+    // Если пользователь отклонен или заблокирован
+    if (user.status === "rejected" || user.status === "blocked") {
+      authStore.logout();
+      next("/login");
+      return;
+    }
   }
 
   // Если все проверки пройдены

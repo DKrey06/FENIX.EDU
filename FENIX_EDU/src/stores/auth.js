@@ -1,295 +1,581 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import axios from "axios";
+
+const API_URL = "http://127.0.0.1:8000/api";
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref(
-    localStorage.getItem("user")
-      ? JSON.parse(localStorage.getItem("user"))
-      : null
-  );
-  const token = ref(localStorage.getItem("access_token"));
-  const refreshToken = ref(localStorage.getItem("refresh_token"));
-  const isLoading = ref(false);
-  const isAuthenticated = computed(() => !!token.value);
-  const isAdmin = computed(() => {
-    return (
-      user.value?.role === "admin" || user.value?.role === "department_head"
-    );
-  });
-  // Создаем экземпляр axios с базовым URL
-  const api = axios.create({
-    baseURL: "http://localhost:8000",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  const user = ref(null);
+  const isAuthenticated = ref(false);
+  const isAdmin = ref(false);
+  const isCheckingAuth = ref(false);
+  const lastAuthCheck = ref(0);
+  const authCheckInterval = 5 * 60 * 1000; // 5 минут между проверками
 
-  // Перехватчик для добавления токена к запросам
-  api.interceptors.request.use((config) => {
-    if (token.value) {
-      config.headers.Authorization = `Bearer ${token.value}`;
-    }
-    return config;
-  });
-
-  // Перехватчик для обработки ошибок и обновления токена
-  api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      const originalRequest = error.config;
-
-      // Если ошибка 401 и это не попытка обновления токена
-      if (
-        error.response?.status === 401 &&
-        !originalRequest._retry &&
-        !originalRequest.url.includes("/api/auth/refresh")
-      ) {
-        originalRequest._retry = true;
-
+  // Инициализация состояния аутентификации при загрузке приложения
+  const init = () => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      // Проверяем, когда была последняя проверка
+      const now = Date.now();
+      if (now - lastAuthCheck.value > authCheckInterval) {
+        getCurrentUser().catch(console.error);
+      } else {
+        // Используем данные из localStorage если проверка была недавно
         try {
-          // Пытаемся обновить токен
-          const data = await refreshAccessToken();
-
-          // Сохраняем новые токены
-          token.value = data.access_token;
-          refreshToken.value = data.refresh_token;
-
-          localStorage.setItem("access_token", data.access_token);
-          localStorage.setItem("refresh_token", data.refresh_token);
-
-          // Обновляем заголовок и повторяем запрос
-          originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          // Если не удалось обновить - выходим
-          logout();
-          return Promise.reject(refreshError);
+          const savedUser = localStorage.getItem("user_data");
+          if (savedUser) {
+            user.value = JSON.parse(savedUser);
+            isAuthenticated.value = true;
+            isAdmin.value =
+              user.value?.role === "admin" ||
+              user.value?.role === "department_head";
+          }
+        } catch (error) {
+          console.error("Ошибка парсинга user_data:", error);
+          localStorage.removeItem("user_data");
         }
       }
-
-      return Promise.reject(error);
-    }
-  );
-
-  // Регистрация
-  const register = async (userData) => {
-    isLoading.value = true;
-    try {
-      const response = await api.post("/api/auth/register", userData);
-
-      if (response.data.access_token) {
-        token.value = response.data.access_token;
-        refreshToken.value = response.data.refresh_token;
-        user.value = response.data.user;
-
-        localStorage.setItem("access_token", response.data.access_token);
-        localStorage.setItem("refresh_token", response.data.refresh_token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-        localStorage.setItem("isAuthenticated", "true");
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Ошибка регистрации:", error);
-      throw error;
-    } finally {
-      isLoading.value = false;
     }
   };
 
-  // Вход
-  const login = async (credentials) => {
-    isLoading.value = true;
-    try {
-      const response = await api.post("/api/auth/login", credentials);
-
-      token.value = response.data.access_token;
-      refreshToken.value = response.data.refresh_token;
-      user.value = response.data.user;
-
-      localStorage.setItem("access_token", response.data.access_token);
-      localStorage.setItem("refresh_token", response.data.refresh_token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("isAuthenticated", "true");
-
-      return response.data;
-    } catch (error) {
-      console.error("Ошибка входа:", error);
-      throw error;
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  // Обновление токена
-  const refreshAccessToken = async () => {
-    if (!refreshToken.value) {
-      throw new Error("No refresh token");
+  // Получение информации о текущем пользователе
+  // В auth.js исправьте метод getCurrentUser:
+  const getCurrentUser = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      clearUserData();
+      return null;
     }
 
+    // Предотвращаем множественные одновременные запросы
+    if (isCheckingAuth.value) {
+      return user.value;
+    }
+
+    isCheckingAuth.value = true;
+
     try {
-      const response = await api.post("/api/auth/refresh", {
-        refresh_token: refreshToken.value,
+      console.log(
+        "Отправляем запрос к /auth/me с токеном:",
+        token.substring(0, 20) + "..."
+      );
+
+      const response = await fetch(`${API_URL}/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
       });
 
-      token.value = response.data.access_token;
-      refreshToken.value = response.data.refresh_token;
+      console.log("Ответ от /auth/me:", response.status, response.statusText);
 
-      localStorage.setItem("access_token", response.data.access_token);
-      localStorage.setItem("refresh_token", response.data.refresh_token);
+      if (response.ok) {
+        // Парсим ответ
+        const data = await response.json();
+        console.log("Данные пользователя получены:", data);
 
-      return response.data;
+        user.value = data.user || data;
+        isAuthenticated.value = true;
+        isAdmin.value =
+          user.value?.role === "admin" ||
+          user.value?.role === "department_head";
+
+        // Устанавливаем статус по умолчанию если его нет
+        if (!user.value.status) {
+          user.value.status = "pending";
+        }
+
+        // Сохраняем данные пользователя в localStorage
+        localStorage.setItem("user_data", JSON.stringify(user.value));
+        lastAuthCheck.value = Date.now();
+
+        return user.value;
+      } else {
+        console.warn(
+          "Не удалось получить данные пользователя:",
+          response.status
+        );
+
+        if (response.status === 401) {
+          console.log("Токен истек или невалиден");
+          // Пробуем обновить токен
+          try {
+            const newToken = await refreshToken();
+            if (newToken) {
+              // Повторяем запрос с новым токеном
+              return getCurrentUser();
+            }
+          } catch (refreshError) {
+            console.error("Не удалось обновить токен:", refreshError);
+            logout();
+          }
+        }
+
+        clearUserData();
+        return null;
+      }
     } catch (error) {
-      console.error("Ошибка обновления токена:", error);
+      console.error("Ошибка получения информации о пользователе:", error);
+      clearUserData();
+      return null;
+    } finally {
+      isCheckingAuth.value = false;
+    }
+  };
+
+  // Вход пользователя
+  // Изменяем метод login
+  const login = async (email, password) => {
+    try {
+      console.log(
+        "Попытка входа с email:",
+        email,
+        "и паролем:",
+        password ? "***" : "нет"
+      );
+
+      // Убедитесь, что отправляете правильный формат
+      const loginData = {
+        email: email,
+        password: password,
+      };
+
+      console.log("Отправляемые данные:", JSON.stringify(loginData));
+
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(loginData),
+      });
+
+      console.log("Статус ответа:", response.status);
+      console.log("Заголовки ответа:", response.headers);
+
+      // Получим полный текст ответа для отладки
+      const responseText = await response.text();
+      console.log("Тело ответа:", responseText);
+
+      if (!response.ok) {
+        let errorDetail;
+        try {
+          const errorData = JSON.parse(responseText);
+          errorDetail =
+            errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch {
+          errorDetail = responseText;
+        }
+
+        console.error("Ошибка от сервера:", errorDetail);
+        throw new Error(errorDetail || `Ошибка входа: ${response.status}`);
+      }
+
+      // Парсим JSON после проверки статуса
+      const data = JSON.parse(responseText);
+      console.log("Успешный ответ от сервера:", data);
+
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+
+        // Получаем данные пользователя
+        await getCurrentUser();
+
+        return data;
+      } else {
+        throw new Error("Токен не получен от сервера");
+      }
+    } catch (error) {
+      console.error("Полная ошибка входа:", error);
       throw error;
+    }
+  };
+  // Регистрация пользователя
+  // В auth.js, в методе register, добавьте более детальную обработку:
+  const register = async (userData) => {
+    try {
+      console.log("Отправка данных регистрации:", JSON.stringify(userData));
+
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const responseText = await response.text();
+      console.log("Ответ регистрации:", response.status, responseText);
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = {
+            message: responseText || `Ошибка регистрации: ${response.status}`,
+          };
+        }
+
+        // Создаем ошибку с полным ответом для детальной обработки
+        const error = new Error(
+          errorData.message || `Ошибка регистрации: ${response.status}`
+        );
+        error.response = {
+          status: response.status,
+          data: errorData,
+        };
+        throw error;
+      }
+
+      const data = JSON.parse(responseText);
+      console.log("Успешная регистрация:", data);
+      return data;
+    } catch (error) {
+      console.error("Ошибка регистрации:", error);
+
+      // Если ошибка уже имеет response, просто пробрасываем ее
+      if (error.response) {
+        throw error;
+      }
+
+      // Иначе создаем структурированную ошибку
+      const structuredError = new Error(error.message || "Ошибка регистрации");
+      structuredError.response = {
+        status: 0,
+        data: { message: error.message },
+      };
+      throw structuredError;
     }
   };
 
   // Выход
   const logout = () => {
-    if (token.value) {
-      try {
-        api.post("/api/auth/logout");
-      } catch (error) {
-        console.error("Ошибка при выходе:", error);
-      }
+    clearUserData();
+
+    // Перенаправляем на страницу логина если не на ней
+    if (
+      window.location.pathname !== "/login" &&
+      window.location.pathname !== "/"
+    ) {
+      window.location.href = "/login";
     }
+  };
 
-    token.value = null;
-    refreshToken.value = null;
-    user.value = null;
-
+  // Очистка данных пользователя
+  const clearUserData = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("user_data");
+    user.value = null;
+    isAuthenticated.value = false;
+    isAdmin.value = false;
+    lastAuthCheck.value = 0;
   };
 
-  // Получение текущего пользователя
-  const getCurrentUser = async () => {
-    if (!token.value) {
-      return null;
-    }
-
-    isLoading.value = true;
+  // Обновление токена
+  const refreshToken = async () => {
     try {
-      const response = await api.get("/api/auth/me");
-      user.value = response.data;
-      localStorage.setItem("user", JSON.stringify(response.data));
-      return response.data;
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (!refreshToken) {
+        throw new Error("Refresh token не найден");
+      }
+
+      console.log("Пытаемся обновить токен...");
+
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка обновления токена: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Токен обновлен успешно");
+
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+        return data.access_token;
+      } else {
+        throw new Error("Новый токен не получен");
+      }
     } catch (error) {
-      console.error("Ошибка получения данных пользователя:", error);
+      console.error("Ошибка обновления токена:", error);
       logout();
-      return null;
-    } finally {
-      isLoading.value = false;
+      throw error;
     }
   };
 
-  // Для админов: получение списка пользователей
+  // Функции для админской панели
   const fetchAdminUsers = async (params = {}) => {
     try {
-      const response = await api.get("/api/admin/users", { params });
-      return response.data;
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      // Подготавливаем параметры запроса
+      const queryParams = new URLSearchParams();
+      queryParams.append("page", params.page || 1);
+      queryParams.append("limit", params.limit || 20);
+
+      // Добавляем только непустые параметры
+      if (params.status && params.status.trim() !== "") {
+        queryParams.append("status", params.status);
+      }
+      if (params.role && params.role.trim() !== "") {
+        queryParams.append("role", params.role);
+      }
+
+      console.log(
+        "Запрос к /admin/users с параметрами:",
+        queryParams.toString()
+      );
+
+      const response = await fetch(
+        `${API_URL}/admin/users?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      console.log("Ответ от /admin/users:", response.status);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Пробуем обновить токен и повторить запрос
+          const newToken = await refreshToken();
+          if (newToken) {
+            return fetchAdminUsers(params);
+          }
+        }
+
+        const errorText = await response.text();
+        console.error("Ошибка ответа:", errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error("Ошибка загрузки пользователей:", error);
       throw error;
     }
   };
 
-  // Для админов: обновление статуса пользователя
-  const updateUserStatus = async (userId, status) => {
-    try {
-      const response = await api.put(`/api/admin/users/${userId}/status`, {
-        status,
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Ошибка обновления статуса:", error);
-      throw error;
-    }
-  };
-
-  // Инициализация при загрузке страницы
-  const init = async () => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      user.value = JSON.parse(savedUser);
-    }
-
-    if (token.value) {
-      await getCurrentUser();
-    }
-  };
-
-  // auth.js - добавьте эти методы в существующий файл
-
-  // Для админов: получение пользователей ожидающих подтверждения
   const fetchPendingUsers = async (params = {}) => {
     try {
-      const response = await api.get("/api/admin/pending-users", { params });
-      return response.data;
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      const queryParams = new URLSearchParams();
+      queryParams.append("status", "pending");
+      queryParams.append("page", params.page || 1);
+      queryParams.append("limit", params.limit || 10);
+
+      const response = await fetch(
+        `${API_URL}/admin/users?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          await refreshToken();
+          return fetchPendingUsers(params);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error("Ошибка загрузки ожидающих пользователей:", error);
       throw error;
     }
   };
 
-  // Для админов: подтверждение пользователя
   const approveUser = async (userId) => {
     try {
-      const response = await api.post(`/api/admin/users/${userId}/approve`);
-      return response.data;
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      const response = await fetch(`${API_URL}/admin/users/${userId}/approve`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          await refreshToken();
+          return approveUser(userId);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error("Ошибка подтверждения пользователя:", error);
       throw error;
     }
   };
 
-  // Для админов: отклонение пользователя
   const rejectUser = async (userId) => {
     try {
-      const response = await api.post(`/api/admin/users/${userId}/reject`);
-      return response.data;
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      const response = await fetch(`${API_URL}/admin/users/${userId}/reject`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          await refreshToken();
+          return rejectUser(userId);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error("Ошибка отклонения пользователя:", error);
       throw error;
     }
   };
 
-  // Проверка статуса аккаунта
+  const updateUserStatus = async (userId, status) => {
+    try {
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          await refreshToken();
+          return updateUserStatus(userId, status);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Ошибка обновления статуса:", error);
+      throw error;
+    }
+  };
   const checkAccountStatus = async () => {
     try {
-      const response = await api.get("/api/auth/check-status");
-      return response.data;
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("Токен не найден");
+      }
+
+      const response = await fetch(`${API_URL}/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const userData = data.user || data;
+
+      return {
+        status: userData.status || "pending",
+        user: userData,
+      };
     } catch (error) {
       console.error("Ошибка проверки статуса:", error);
       throw error;
     }
   };
 
-  // В return добавьте эти методы:
+  // Автоматически вызываем init при создании store
+  init();
+
   return {
-    user,
-    token,
-    refreshToken,
-    isLoading,
-    isAuthenticated,
-    isAdmin,
-    register,
-    login,
-    logout,
-    getCurrentUser,
-    fetchAdminUsers,
-    updateUserStatus,
-    refreshAccessToken,
+    user: computed(() => user.value),
+    isAuthenticated: computed(() => isAuthenticated.value),
+    isAdmin: computed(() => isAdmin.value),
     init,
-    api,
-    // Новые методы:
+    getCurrentUser,
+    login,
+    register,
+    logout,
+    refreshToken,
+    fetchAdminUsers,
     fetchPendingUsers,
     approveUser,
     rejectUser,
+    updateUserStatus,
     checkAccountStatus,
   };
 });

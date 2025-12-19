@@ -289,7 +289,7 @@ watch(
   }
 );
 
-// Обработчик регистрации
+// Обработчик регистрации - УПРОЩЕННАЯ ВЕРСИЯ
 const handleRegister = async () => {
   Object.keys(errors).forEach((key) => (errors[key] = ""));
 
@@ -354,57 +354,87 @@ const handleRegister = async () => {
     // Объединяем имя и фамилию
     const fullName = `${registerData.firstName} ${registerData.lastName}`.trim();
 
+    // Вызываем регистрацию
     await authStore.register({
-      full_name: fullName,  // ← отправляем как full_name
+      full_name: fullName,
       email: registerData.email,
       password: registerData.password,
       role: registerData.role,
       course: registerData.role === "student" ? registerData.course : null,
       group: registerData.role === "student" ? registerData.group : null,
-      // password_confirmation не нужен на бэкенде
     });
 
-    alert("Регистрация успешна! Добро пожаловать в FENIX.EDU!");
+    // После успешной регистрации сразу перенаправляем на страницу ожидания
+    alert("Регистрация успешна! Ваш аккаунт ожидает подтверждения администратором.");
+
+    // Очищаем поля формы
+    Object.keys(registerData).forEach(key => {
+      if (key !== 'role') {
+        if (typeof registerData[key] === 'string') {
+          registerData[key] = '';
+        } else if (typeof registerData[key] === 'boolean') {
+          registerData[key] = false;
+        }
+      }
+    });
+    registerData.role = 'student';
+
+    // Перенаправляем на страницу ожидания
     router.push("/waiting-approval");
+
   } catch (error) {
     console.error("Ошибка регистрации:", error);
 
-    // Показываем детальную ошибку от сервера
-    if (error.response?.data?.detail) {
-      const errorDetails = error.response.data.detail;
-      if (Array.isArray(errorDetails)) {
-        errorDetails.forEach(err => {
-          if (err.loc && err.loc[1]) {
-            const field = err.loc[1];
-            errors[field] = err.msg;
+    // Безопасная обработка ошибок
+    let errorMessage = "Произошла ошибка при регистрации";
+
+    if (error.response) {
+      // Ошибка от сервера с ответом
+      const responseData = error.response.data;
+
+      if (responseData) {
+        if (responseData.detail) {
+          // Если детали - это массив (валидационные ошибки)
+          if (Array.isArray(responseData.detail)) {
+            responseData.detail.forEach(err => {
+              if (err.loc && err.loc[1]) {
+                const field = err.loc[1];
+                errors[field] = err.msg;
+              }
+            });
+            return; // Выходим, так как уже установили ошибки в поля
           }
-        });
-      } else if (typeof errorDetails === 'string') {
-        errors.email = errorDetails;
+          // Если детали - строка
+          else if (typeof responseData.detail === 'string') {
+            errorMessage = responseData.detail;
+          }
+        }
+        // Проверяем другие возможные форматы ошибок
+        else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.email && Array.isArray(responseData.email)) {
+          errors.email = responseData.email[0];
+          return;
+        } else if (responseData.password && Array.isArray(responseData.password)) {
+          errors.password = responseData.password[0];
+          return;
+        }
       }
-    } else {
-      errors.email = error.response?.data?.message || "Произошла ошибка при регистрации";
+    } else if (error.request) {
+      // Запрос был сделан, но ответ не получен
+      errorMessage = "Сервер не отвечает. Проверьте подключение к интернету.";
+    } else if (error.message) {
+      // Ошибка в настройке запроса
+      errorMessage = error.message;
     }
+
+    // Показываем общую ошибку
+    alert(errorMessage);
+    errors.email = errorMessage;
   } finally {
     isLoading.value = false;
   }
 };
-
-// Автозаполнение для демо
-const fillDemoData = () => {
-  registerData.firstName = "Иван";
-  registerData.lastName = "Иванов";
-  registerData.email = "student@fenixedu.ru";
-  registerData.password = "Demo123!";
-  registerData.confirmPassword = "Demo123!";
-  registerData.role = "student";
-  registerData.course = "1";
-  registerData.group = "ИС-21-1";
-  registerData.acceptTerms = true;
-};
-
-// Вызываем для демо
-fillDemoData();
 </script>
 
 <style scoped>

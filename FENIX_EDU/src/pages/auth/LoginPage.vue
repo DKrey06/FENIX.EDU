@@ -132,29 +132,50 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    await authStore.login({
-      email: loginData.email,
-      password: loginData.password,
-    });
+    await authStore.login(loginData.email, loginData.password);
+
+    // Проверяем статус пользователя после входа
+    const user = authStore.user;
+
+    if (user && user.status === 'pending') {
+      // Если статус "ожидает подтверждения", перенаправляем на waiting-approval
+      router.push("/waiting-approval");
+    } else if (user && user.status === 'active') {
+      // Если аккаунт активен, перенаправляем на dashboard
+      router.push("/dashboard");
+    } else if (user && user.status === 'rejected') {
+      // Если аккаунт отклонен
+      errors.password = "Ваш аккаунт был отклонен администратором";
+    } else if (user && user.status === 'blocked') {
+      // Если аккаунт заблокирован
+      errors.password = "Ваш аккаунт заблокирован";
+    } else {
+      // По умолчанию - на dashboard
+      router.push("/dashboard");
+    }
 
     if (loginData.remember) {
       localStorage.setItem("userEmail", loginData.email);
     }
-
-    router.push("/");
   } catch (error) {
     console.error("Ошибка входа:", error);
-    errors.password =
-      error.response?.data?.message || "Неверный email или пароль";
+    // Показываем пользователю понятное сообщение
+    if (error.message.includes("Аккаунт не подтвержден")) {
+      errors.password = "Ваш аккаунт ожидает подтверждения администратором";
+    } else if (error.message.includes("Неверный email или пароль")) {
+      errors.password = "Неверный email или пароль";
+    } else {
+      errors.password = error.message || "Произошла ошибка при входе";
+    }
   } finally {
     isLoading.value = false;
   }
 };
 
-// Автозаполнение для демо
+// Исправьте демо-данные
 const fillDemoCredentials = () => {
-  loginData.email = "student@fenixedu.ru";
-  loginData.password = "demo123";
+  loginData.email = "admin@fenixedu.ru"; // Используем админский аккаунт
+  loginData.password = "admin123";
   loginData.remember = true;
 };
 
