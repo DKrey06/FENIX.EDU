@@ -365,7 +365,7 @@ const handleRegister = async () => {
     });
 
     alert("Регистрация успешна! Добро пожаловать в FENIX.EDU!");
-    router.push("/");
+    router.push("/waiting-approval");
   } catch (error) {
     console.error("Ошибка регистрации:", error);
 

@@ -10,6 +10,7 @@ import CoursesPage from "../pages/CoursesPage.vue";
 import DiscussionPage from "../pages/DiscussionPage.vue";
 import ArchivePage from "../pages/ArchivePage.vue";
 import MessagesPage from "../pages/MessagesPage.vue";
+import WaitingApprovalPage from "../pages/WaitingApprovalPage.vue";
 
 const routes = [
   // Лендинг для неавторизованных пользователей
@@ -19,12 +20,36 @@ const routes = [
     component: LandingPage,
     meta: { guestOnly: true },
   },
+  {
+    path: "/waiting-approval",
+    name: "WaitingApproval",
+    component: WaitingApprovalPage,
+    meta: { requiresAuth: true },
+  },
   // Главная страница для авторизованных
   {
     path: "/dashboard",
     name: "Dashboard",
     component: IndexPage,
     meta: { requiresAuth: true },
+  },
+  // Админ-панель с layout
+  {
+    path: "/admin",
+    component: () => import("../pages/AdminLayout.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      {
+        path: "",
+        redirect: "/admin/users", // Перенаправление с /admin на /admin/users
+      },
+      {
+        path: "users",
+        name: "AdminUsers",
+        component: () => import("../pages/AdminUsersPage.vue"),
+      },
+      // другие админские страницы можно добавить здесь
+    ],
   },
   // Страницы авторизации
   {
@@ -69,16 +94,6 @@ const routes = [
     name: "Messages",
     component: MessagesPage,
     meta: { requiresAuth: true },
-  },
-  // Админ-панель
-  {
-    path: "/admin/users",
-    name: "AdminUsers",
-    component: () => import("../pages/AdminUsersPage.vue"),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-    },
   },
   // Редирект для несуществующих маршрутов
   {

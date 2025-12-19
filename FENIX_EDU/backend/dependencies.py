@@ -9,7 +9,31 @@ from models import User, UserRole, UserStatus
 
 security = HTTPBearer()
 
+def get_current_user_for_waiting(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Более мягкая версия для страницы ожидания"""
+    token = credentials.credentials
+    payload = decode_token(token)
 
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Невалидный или просроченный токен",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = payload.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден",
+        )
+
+    return user
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)

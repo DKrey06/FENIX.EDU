@@ -8,16 +8,6 @@
 
         <div class="sidebar-content">
           <!-- Информация о пользователе -->
-          <div class="sidebar-section" v-if="isAuthenticated">
-            <div class="user-info">
-              <div class="user-avatar">{{ userInitials }}</div>
-              <div class="user-details">
-                <div class="user-name">{{ user?.full_name }}</div>
-                <div class="user-role">{{ user?.role }}</div>
-              </div>
-            </div>
-          </div>
-
           <!-- Меню -->
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
@@ -42,6 +32,12 @@
                 <span class="nav-icon">📖</span>
                 <span class="nav-text">Курсы</span>
               </router-link>
+              <div v-if="user?.role === 'admin' || user?.role === 'department_head'" class="admin-link">
+                <router-link to="/admin" class="nav-item">
+                  <span class="nav-icon">👑</span>
+                  <span class="nav-text">Админ-панель</span>
+                </router-link>
+              </div>
             </nav>
           </div>
 

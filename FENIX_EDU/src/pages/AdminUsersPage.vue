@@ -1,102 +1,106 @@
 <template>
-    <div class="admin-users-page">
-        <div class="page-header">
-            <h1>Управление пользователями</h1>
-            <p>Подтверждение учетных записей пользователей</p>
-        </div>
-
-        <div class="filters">
-            <div class="filter-group">
-                <label>Статус:</label>
-                <select v-model="filters.status" @change="loadUsers">
-                    <option value="">Все</option>
-                    <option value="pending">Ожидают подтверждения</option>
-                    <option value="active">Активные</option>
-                    <option value="rejected">Отклоненные</option>
-                </select>
+    <div class="admin-page-container">
+        <div class="admin-users-page">
+            <div class="page-header">
+                <h1>Управление пользователями</h1>
+                <p>Подтверждение учетных записей пользователей</p>
             </div>
 
-            <div class="filter-group">
-                <label>Роль:</label>
-                <select v-model="filters.role" @change="loadUsers">
-                    <option value="">Все</option>
-                    <option value="student">Студенты</option>
-                    <option value="teacher">Преподаватели</option>
-                </select>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Статус:</label>
+                    <select v-model="filters.status" @change="loadUsers">
+                        <option value="">Все</option>
+                        <option value="pending">Ожидают подтверждения</option>
+                        <option value="active">Активные</option>
+                        <option value="rejected">Отклоненные</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Роль:</label>
+                    <select v-model="filters.role" @change="loadUsers">
+                        <option value="">Все</option>
+                        <option value="student">Студенты</option>
+                        <option value="teacher">Преподаватели</option>
+                    </select>
+                </div>
             </div>
-        </div>
 
-        <div class="users-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>ФИО</th>
-                        <th>Email</th>
-                        <th>Роль</th>
-                        <th>Курс/Группа</th>
-                        <th>Статус</th>
-                        <th>Дата регистрации</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="user in users" :key="user.id">
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.full_name }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>
-                            <span class="role-badge" :class="user.role">
-                                {{ getRoleLabel(user.role) }}
-                            </span>
-                        </td>
-                        <td>
-                            <span v-if="user.course">{{ user.course }} курс</span>
-                            <span v-if="user.group">, {{ user.group }}</span>
-                        </td>
-                        <td>
-                            <span class="status-badge" :class="user.status">
-                                {{ getStatusLabel(user.status) }}
-                            </span>
-                        </td>
-                        <td>{{ formatDate(user.created_at) }}</td>
-                        <td class="actions">
-                            <button v-if="user.status === 'pending'" @click="approveUser(user.id)" class="btn-approve">
-                                Подтвердить
-                            </button>
-                            <button v-if="user.status === 'pending'" @click="rejectUser(user.id)" class="btn-reject">
-                                Отклонить
-                            </button>
-                            <button v-if="user.status === 'active'" @click="blockUser(user.id)" class="btn-block">
-                                Заблокировать
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ФИО</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Курс/Группа</th>
+                            <th>Статус</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="user in users" :key="user.id">
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.full_name }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="role-badge" :class="user.role">
+                                    {{ getRoleLabel(user.role) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span v-if="user.course">{{ user.course }} курс</span>
+                                <span v-if="user.group">, {{ user.group }}</span>
+                            </td>
+                            <td>
+                                <span class="status-badge" :class="user.status">
+                                    {{ getStatusLabel(user.status) }}
+                                </span>
+                            </td>
+                            <td>{{ formatDate(user.created_at) }}</td>
+                            <td class="actions">
+                                <button v-if="user.status === 'pending'" @click="approveUser(user.id)"
+                                    class="btn-approve">
+                                    Подтвердить
+                                </button>
+                                <button v-if="user.status === 'pending'" @click="rejectUser(user.id)"
+                                    class="btn-reject">
+                                    Отклонить
+                                </button>
+                                <button v-if="user.status === 'active'" @click="blockUser(user.id)" class="btn-block">
+                                    Заблокировать
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
 
-            <div v-if="users.length === 0" class="empty-state">
-                <p>Нет пользователей для отображения</p>
+                <div v-if="users.length === 0" class="empty-state">
+                    <p>Нет пользователей для отображения</p>
+                </div>
             </div>
-        </div>
 
-        <div class="pagination" v-if="totalPages > 1">
-            <button @click="prevPage" :disabled="currentPage === 1">
-                ←
-            </button>
-            <span>Страница {{ currentPage }} из {{ totalPages }}</span>
-            <button @click="nextPage" :disabled="currentPage === totalPages">
-                →
-            </button>
+            <div class="pagination" v-if="totalPages > 1">
+                <button @click="prevPage" :disabled="currentPage === 1">
+                    ←
+                </button>
+                <span>Страница {{ currentPage }} из {{ totalPages }}</span>
+                <button @click="nextPage" :disabled="currentPage === totalPages">
+                    →
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 
-const authStore = useAuthStore()
+const authStore = useAuthStore();
 const users = ref([])
 const filters = ref({
     status: '',
@@ -123,21 +127,21 @@ const loadUsers = async () => {
 
 const approveUser = async (userId) => {
     try {
-        await authStore.updateUserStatus(userId, 'active')
-        await loadUsers()
+        await authStore.approveUser(userId);
+        await loadUsers();
     } catch (error) {
-        console.error('Ошибка подтверждения:', error)
+        console.error('Ошибка подтверждения:', error);
     }
-}
+};
 
 const rejectUser = async (userId) => {
     try {
-        await authStore.updateUserStatus(userId, 'rejected')
-        await loadUsers()
+        await authStore.rejectUser(userId);
+        await loadUsers();
     } catch (error) {
-        console.error('Ошибка отклонения:', error)
+        console.error('Ошибка отклонения:', error);
     }
-}
+};
 
 const blockUser = async (userId) => {
     try {
@@ -190,7 +194,6 @@ onMounted(() => {
     loadUsers()
 })
 </script>
-
 <style scoped>
 .admin-users-page {
     padding: 2rem;

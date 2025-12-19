@@ -12,11 +12,7 @@
 
       <div class="header__search" v-if="!isAuthPage">
         <div class="search-box">
-          <input
-            type="text"
-            placeholder="Поиск по курсам..."
-            class="search-input"
-          />
+          <input type="text" placeholder="Поиск по курсам..." class="search-input" />
           <button class="search-btn">
             <span class="search-icon">🔍</span>
           </button>
@@ -24,58 +20,54 @@
       </div>
 
       <div class="header__actions">
-        <button class="notification-btn" v-if="!isAuthPage">
+        <button class="notification-btn" v-if="!isAuthPage && isAuthenticated">
           <span class="notification-icon">🔔</span>
           <span class="notification-badge" v-if="notificationsCount > 0">
             {{ notificationsCount }}
           </span>
         </button>
 
-        <div class="user-name" v-if="isAuthenticated && !isAuthPage">
-          {{ userName }}
+        <!-- Информация о пользователе -->
+        <div class="user-info-display" v-if="isAuthenticated && !isAuthPage">
+          <div class="user-role-badge" :class="userRoleClass">
+            {{ formattedUserRole }}
+          </div>
+          <div class="user-name-display">
+            {{ userName }}
+          </div>
+
+          <!-- Ссылка на админ-панель для админов -->
+          <router-link v-if="isAdmin" to="/admin" class="admin-panel-link">
+            <span class="admin-icon">👑</span>
+            <span class="admin-text">Админ-панель</span>
+          </router-link>
         </div>
 
-        <div
-          class="user-logo-container"
-          @click="toggleProfileInfo"
-          v-if="isAuthenticated && !isAuthPage"
-          ref="userLogo"
-        >
+        <div class="user-logo-container" @click="toggleProfileInfo" v-if="isAuthenticated && !isAuthPage"
+          ref="userLogo">
           <img :src="userLogoUrl" alt="User Logo" class="user-logo" />
           <span class="user-logo-badge" v-if="hasNotifications">!</span>
         </div>
 
         <div class="auth-buttons" v-if="!isAuthenticated">
-          <router-link
-            to="/login"
-            class="auth-btn login-btn"
-            :class="{ active: isLoginPage }"
-          >
+          <router-link to="/login" class="auth-btn login-btn" :class="{ active: isLoginPage }">
             <span class="auth-btn__text">Войти</span>
           </router-link>
-          <router-link
-            to="/register"
-            class="auth-btn register-btn"
-            :class="{ active: isRegisterPage }"
-          >
+          <router-link to="/register" class="auth-btn register-btn" :class="{ active: isRegisterPage }">
             <span class="auth-btn__text">Регистрация</span>
           </router-link>
         </div>
 
         <!-- Плашка с информацией о профиле -->
-        <div
-          class="profile-info-panel"
-          v-if="showProfileInfo && isAuthenticated"
-          ref="profilePanel"
-          :style="panelStyle"
-        >
+        <div class="profile-info-panel" v-if="showProfileInfo && isAuthenticated" ref="profilePanel"
+          :style="panelStyle">
           <div class="profile-info-header">
             <div class="profile-avatar">
-              <img :src="userLogoUrl" alt="User Avatar" class="avatar-image" />
+              <div class="avatar-initials">{{ userInitials }}</div>
             </div>
             <div class="profile-main-info">
               <h3 class="profile-name">{{ userName }}</h3>
-              <div class="profile-role">{{ userRole }}</div>
+              <div class="profile-role">{{ formattedUserRole }}</div>
               <div class="profile-email">{{ userEmail }}</div>
             </div>
             <button class="close-btn" @click.stop="showProfileInfo = false">
@@ -87,21 +79,21 @@
             <div class="info-section">
               <h4 class="section-title">Учебная информация</h4>
               <div class="info-grid">
-                <div class="info-item">
+                <div class="info-item" v-if="userGroup">
                   <span class="info-label">Группа:</span>
                   <span class="info-value">{{ userGroup }}</span>
                 </div>
-                <div class="info-item">
+                <div class="info-item" v-if="userCourse">
                   <span class="info-label">Курс:</span>
                   <span class="info-value">{{ userCourse }}</span>
                 </div>
-                <div class="info-item">
+                <div class="info-item" v-if="userFaculty">
                   <span class="info-label">Факультет:</span>
                   <span class="info-value">{{ userFaculty }}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Статус:</span>
-                  <span class="info-value status-active">Активный</span>
+                  <span class="info-value status-active">{{ userStatus }}</span>
                 </div>
               </div>
             </div>
@@ -110,15 +102,15 @@
               <h4 class="section-title">Статистика</h4>
               <div class="stats-grid">
                 <div class="stat-item">
-                  <div class="stat-value">8</div>
+                  <div class="stat-value">{{ coursesCount }}</div>
                   <div class="stat-label">Курсов</div>
                 </div>
                 <div class="stat-item">
-                  <div class="stat-value">4</div>
+                  <div class="stat-value">{{ inProgressCount }}</div>
                   <div class="stat-label">В процессе</div>
                 </div>
                 <div class="stat-item">
-                  <div class="stat-value">75%</div>
+                  <div class="stat-value">{{ progressPercentage }}%</div>
                   <div class="stat-label">Прогресс</div>
                 </div>
               </div>
@@ -142,30 +134,75 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import userLogoCat from "@/assets/images/cat-logo.png";
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
+
 const notificationsCount = ref(3);
-const isAuthenticated = ref(false);
 const showProfileInfo = ref(false);
 const userLogo = ref(null);
 const profilePanel = ref(null);
 
 const userLogoUrl = userLogoCat;
 
-// Данные пользователя
-const userData = ref({
-  firstName: "Иван",
-  lastName: "Иванов",
-  email: "student@fenixedu.ru",
-  role: "student",
-  group: "Б9124-01.03.02сп",
-  course: "2 курс",
-  faculty: "Прикладная математика и информатика",
+// Получаем данные из authStore
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
+const isAdmin = computed(() => authStore.isAdmin);
+
+// Компьютед свойства для пользователя
+const userName = computed(() => {
+  return user.value?.full_name || "Пользователь";
 });
+
+const userInitials = computed(() => {
+  if (!user.value?.full_name) return "👤";
+  return user.value.full_name
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase();
+});
+
+const formattedUserRole = computed(() => {
+  const roles = {
+    student: 'Студент',
+    teacher: 'Преподаватель',
+    department_head: 'Зав. кафедрой',
+    admin: 'Администратор'
+  };
+  return roles[user.value?.role] || user.value?.role || 'Пользователь';
+});
+
+const userRoleClass = computed(() => {
+  return `role-${user.value?.role || 'student'}`;
+});
+
+const userEmail = computed(() => user.value?.email || '');
+const userGroup = computed(() => user.value?.group || '');
+const userCourse = computed(() => user.value?.course || '');
+const userFaculty = computed(() => user.value?.faculty || '');
+const userStatus = computed(() => {
+  const statuses = {
+    pending: 'Ожидает',
+    active: 'Активный',
+    rejected: 'Отклонен',
+    blocked: 'Заблокирован'
+  };
+  return statuses[user.value?.status] || 'Активный';
+});
+
+// Статистика (можно вынести в отдельный store или получать с API)
+const coursesCount = ref(8);
+const inProgressCount = ref(4);
+const progressPercentage = ref(75);
+
+const hasNotifications = computed(() => notificationsCount.value > 0);
 
 const isAuthPage = computed(() => {
   return route.path === "/login" || route.path === "/register";
@@ -179,20 +216,6 @@ const isRegisterPage = computed(() => {
   return route.path === "/register";
 });
 
-const userName = computed(() => {
-  return `${userData.value.firstName} ${userData.value.lastName}`;
-});
-
-const userRole = computed(() => {
-  return userData.value.role === "teacher" ? "Преподаватель" : "Студент";
-});
-
-const userEmail = computed(() => userData.value.email);
-const userGroup = computed(() => userData.value.group);
-const userCourse = computed(() => userData.value.course);
-const userFaculty = computed(() => userData.value.faculty);
-const hasNotifications = computed(() => notificationsCount.value > 0);
-
 const panelStyle = computed(() => {
   if (!userLogo.value) return {};
 
@@ -203,21 +226,20 @@ const panelStyle = computed(() => {
   };
 });
 
-// Проверка авторизации
-onMounted(() => {
-  isAuthenticated.value = localStorage.getItem("isAuthenticated") === "true";
-
-  const savedData = localStorage.getItem("userData");
-  if (savedData) {
-    try {
-      const parsedData = JSON.parse(savedData);
-      userData.value = { ...userData.value, ...parsedData };
-    } catch (error) {
-      console.error("Ошибка при загрузке данных пользователя:", error);
-    }
+// Наблюдаем за изменениями авторизации
+watch(() => authStore.isAuthenticated, (newVal) => {
+  if (!newVal) {
+    showProfileInfo.value = false;
   }
+});
 
+onMounted(() => {
   document.addEventListener("click", handleClickOutside);
+
+  // Загружаем данные пользователя если токен есть
+  if (localStorage.getItem("access_token")) {
+    authStore.getCurrentUser().catch(console.error);
+  }
 });
 
 onUnmounted(() => {
@@ -241,19 +263,17 @@ const toggleProfileInfo = () => {
   }
 };
 
-const handleLogout = () => {
-  localStorage.removeItem("isAuthenticated");
-  localStorage.removeItem("userData");
-  isAuthenticated.value = false;
-  showProfileInfo.value = false;
-  router.push("/login");
-};
-
-window.addEventListener("storage", (event) => {
-  if (event.key === "isAuthenticated") {
-    isAuthenticated.value = event.newValue === "true";
+const handleLogout = async () => {
+  try {
+    await authStore.logout();
+    showProfileInfo.value = false;
+    if (route.meta.requiresAuth) {
+      router.push("/login");
+    }
+  } catch (error) {
+    console.error("Ошибка выхода:", error);
   }
-});
+};
 </script>
 
 <style scoped>
@@ -399,14 +419,77 @@ window.addEventListener("storage", (event) => {
   font-weight: 600;
 }
 
-.user-name {
-  font-weight: 600;
-  color: #2f4156;
-  font-size: 0.95rem;
+/* Стили для отображения информации о пользователе */
+.user-info-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem 1rem;
   background: rgba(200, 218, 232, 0.2);
   border-radius: 8px;
   border: 1px solid rgba(200, 218, 232, 0.4);
+}
+
+.user-role-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-student {
+  background: #bee3f8;
+  color: #2c5282;
+}
+
+.role-teacher {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.role-department_head {
+  background: #e9d8fd;
+  color: #553c9a;
+}
+
+.role-admin {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.user-name-display {
+  font-weight: 600;
+  color: #2f4156;
+  font-size: 0.95rem;
+}
+
+.admin-panel-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #2f4156;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.admin-panel-link:hover {
+  background: #1a2530;
+  transform: translateY(-1px);
+}
+
+.admin-icon {
+  font-size: 1rem;
+}
+
+.admin-text {
+  font-size: 0.85rem;
 }
 
 .user-logo-container {
@@ -504,6 +587,7 @@ window.addEventListener("storage", (event) => {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -526,11 +610,17 @@ window.addEventListener("storage", (event) => {
   flex-shrink: 0;
 }
 
-.avatar-image {
+.avatar-initials {
   width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.25rem;
   border: 3px solid #f0c3d1;
 }
 
@@ -643,11 +733,9 @@ window.addEventListener("storage", (event) => {
 
 .stat-item {
   padding: 0.75rem;
-  background: linear-gradient(
-    135deg,
-    rgba(240, 195, 209, 0.2) 0%,
-    rgba(200, 218, 232, 0.2) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(240, 195, 209, 0.2) 0%,
+      rgba(200, 218, 232, 0.2) 100%);
   border-radius: 8px;
   border: 1px solid rgba(212, 185, 187, 0.3);
 }
@@ -750,8 +838,23 @@ window.addEventListener("storage", (event) => {
     font-size: 1.25rem;
   }
 
-  .user-name {
+  .user-info-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .user-name-display {
+    font-size: 0.9rem;
+  }
+
+  .admin-text {
     display: none;
+  }
+
+  .admin-panel-link {
+    padding: 0.4rem;
   }
 
   .auth-btn__text {
@@ -794,6 +897,10 @@ window.addEventListener("storage", (event) => {
   .user-logo-container {
     width: 36px;
     height: 36px;
+  }
+
+  .user-info-display {
+    display: none;
   }
 }
 </style>

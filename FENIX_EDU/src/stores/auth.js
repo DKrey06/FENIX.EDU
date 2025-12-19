@@ -12,8 +12,11 @@ export const useAuthStore = defineStore("auth", () => {
   const refreshToken = ref(localStorage.getItem("refresh_token"));
   const isLoading = ref(false);
   const isAuthenticated = computed(() => !!token.value);
-  const isAdmin = computed(() => user.value?.role === "admin");
-
+  const isAdmin = computed(() => {
+    return (
+      user.value?.role === "admin" || user.value?.role === "department_head"
+    );
+  });
   // Создаем экземпляр axios с базовым URL
   const api = axios.create({
     baseURL: "http://localhost:8000",
@@ -220,6 +223,53 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  // auth.js - добавьте эти методы в существующий файл
+
+  // Для админов: получение пользователей ожидающих подтверждения
+  const fetchPendingUsers = async (params = {}) => {
+    try {
+      const response = await api.get("/api/admin/pending-users", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Ошибка загрузки ожидающих пользователей:", error);
+      throw error;
+    }
+  };
+
+  // Для админов: подтверждение пользователя
+  const approveUser = async (userId) => {
+    try {
+      const response = await api.post(`/api/admin/users/${userId}/approve`);
+      return response.data;
+    } catch (error) {
+      console.error("Ошибка подтверждения пользователя:", error);
+      throw error;
+    }
+  };
+
+  // Для админов: отклонение пользователя
+  const rejectUser = async (userId) => {
+    try {
+      const response = await api.post(`/api/admin/users/${userId}/reject`);
+      return response.data;
+    } catch (error) {
+      console.error("Ошибка отклонения пользователя:", error);
+      throw error;
+    }
+  };
+
+  // Проверка статуса аккаунта
+  const checkAccountStatus = async () => {
+    try {
+      const response = await api.get("/api/auth/check-status");
+      return response.data;
+    } catch (error) {
+      console.error("Ошибка проверки статуса:", error);
+      throw error;
+    }
+  };
+
+  // В return добавьте эти методы:
   return {
     user,
     token,
@@ -236,5 +286,10 @@ export const useAuthStore = defineStore("auth", () => {
     refreshAccessToken,
     init,
     api,
+    // Новые методы:
+    fetchPendingUsers,
+    approveUser,
+    rejectUser,
+    checkAccountStatus,
   };
 });

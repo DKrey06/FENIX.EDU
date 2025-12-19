@@ -28,6 +28,7 @@ from settings import (
 )
 from dependencies import (
     get_current_user,
+    get_current_user_for_waiting,
     require_admin,
     require_department_head,
     require_account_confirmation,
@@ -358,6 +359,114 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         },
     )
 
+# Получение пользователей ожидающих подтверждения (только для админов)
+@app.get("/api/admin/pending-users", response_model=UserListResponse)
+def get_pending_users(
+    page: int = 1,
+    limit: int = 20,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    query = db.query(User).filter(User.status == UserStatus.PENDING)
+    
+    total = query.count()
+    users = query.offset((page - 1) * limit).limit(limit).all()
+
+    return UserListResponse(
+        users=[user.to_dict() for user in users],
+        total=total,
+        page=page,
+        pages=(total + limit - 1) // limit,
+    )
+
+
+# Подтверждение пользователя (админ)
+@app.post("/api/admin/users/{user_id}/approve")
+def approve_user(
+    user_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    if user.status != UserStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Пользователь уже имеет статус: {user.status}",
+        )
+    
+    # Обновление статуса
+    user.status = UserStatus.ACTIVE
+    user.confirmed_at = datetime.utcnow()
+    user.confirmed_by = current_user.id
+    
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Пользователь {user.email} подтвержден",
+        "user": user.to_dict(),
+    }
+
+
+# Отклонение пользователя (админ)
+@app.post("/api/admin/users/{user_id}/reject")
+def reject_user(
+    user_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    if user.status != UserStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Пользователь уже имеет статус: {user.status}",
+        )
+    
+    # Обновление статуса
+    user.status = UserStatus.REJECTED
+    user.confirmed_by = current_user.id
+    
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Пользователь {user.email} отклонен",
+        "user": user.to_dict(),
+    }
+
+
+# Проверка статуса аккаунта (для пользователя)
+@app.get("/api/auth/check-status")
+def check_account_status(
+    current_user: User = Depends(get_current_user_for_waiting),  # Используем мягкую проверку
+):
+    return {
+        "status": current_user.status,
+        "message": get_status_message(current_user.status),
+        "user": current_user.to_dict(),
+    }
+
+
+def get_status_message(status: UserStatus) -> str:
+    messages = {
+        UserStatus.PENDING: "Ваш аккаунт ожидает подтверждения администратором.",
+        UserStatus.ACTIVE: "Ваш аккаунт активен.",
+        UserStatus.REJECTED: "Ваш аккаунт был отклонен администратором.",
+        UserStatus.BLOCKED: "Ваш аккаунт заблокирован.",
+    }
+    return messages.get(status, "Неизвестный статус.")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
