@@ -1,18 +1,13 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from settings import decode_token
 from database import get_db
 from models import User, UserRole, UserStatus
-import redis
-import json
 
 
 security = HTTPBearer()
-
-# Подключение к Redis для хранения токенов (опционально)
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 
 def get_current_user(
@@ -43,13 +38,6 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Аккаунт не подтвержден или заблокирован",
-        )
-
-    # Проверка в blacklist (если используем Redis)
-    if redis_client.get(f"blacklist:{token}"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Токен заблокирован",
         )
 
     return user

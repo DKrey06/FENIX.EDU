@@ -1,22 +1,45 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
+// Импортируем компоненты
+import LandingPage from "../pages/LandingPage.vue";
 import IndexPage from "../components/IndexPage.vue";
+import LoginPage from "../pages/auth/LoginPage.vue";
+import RegisterPage from "../pages/auth/RegisterPage.vue";
 import CoursesPage from "../pages/CoursesPage.vue";
 import DiscussionPage from "../pages/DiscussionPage.vue";
 import ArchivePage from "../pages/ArchivePage.vue";
 import MessagesPage from "../pages/MessagesPage.vue";
-import LoginPage from "../pages/auth/LoginPage.vue";
-import RegisterPage from "../pages/auth/RegisterPage.vue";
-import CourseEditPage from "../pages/CourseEditPageFK.vue";
 
 const routes = [
+  // Лендинг для неавторизованных пользователей
   {
     path: "/",
-    name: "Home",
+    name: "Landing",
+    component: LandingPage,
+    meta: { guestOnly: true },
+  },
+  // Главная страница для авторизованных
+  {
+    path: "/dashboard",
+    name: "Dashboard",
     component: IndexPage,
     meta: { requiresAuth: true },
   },
+  // Страницы авторизации
+  {
+    path: "/login",
+    name: "Login",
+    component: LoginPage,
+    meta: { guestOnly: true },
+  },
+  {
+    path: "/register",
+    name: "Register",
+    component: RegisterPage,
+    meta: { guestOnly: true },
+  },
+  // Другие защищенные маршруты
   {
     path: "/courses",
     name: "Courses",
@@ -29,19 +52,6 @@ const routes = [
     component: () => import("../pages/CourseViewPage.vue"),
     meta: { requiresAuth: true },
   },
-  {
-    path: "/course/:id/edit",
-    name: "CourseViewEdit",
-    component: () => import("../pages/CourseViewEditPage.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/courses/:id/edit",
-    name: "CourseEdit",
-    component: CourseEditPage,
-    meta: { requiresAuth: true },
-  },
-
   {
     path: "/discussions",
     name: "Discussions",
@@ -60,18 +70,7 @@ const routes = [
     component: MessagesPage,
     meta: { requiresAuth: true },
   },
-  {
-    path: "/login",
-    name: "Login",
-    component: LoginPage,
-    meta: { guestOnly: true },
-  },
-  {
-    path: "/register",
-    name: "Register",
-    component: RegisterPage,
-    meta: { guestOnly: true },
-  },
+  // Админ-панель
   {
     path: "/admin/users",
     name: "AdminUsers",
@@ -81,6 +80,7 @@ const routes = [
       requiresAdmin: true,
     },
   },
+  // Редирект для несуществующих маршрутов
   {
     path: "/:pathMatch(.*)*",
     redirect: "/",
@@ -96,18 +96,32 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   const isAuthenticated = authStore.isAuthenticated;
 
-  if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    next("/");
+  // Авторизованный пользователь на лендинге -> на дашборд
+  if (to.path === "/" && isAuthenticated) {
+    next("/dashboard");
     return;
   }
 
+  // Неавторизованный пользователь на защищенной странице -> на логин
   if (to.meta.requiresAuth && !isAuthenticated) {
     next("/login");
-  } else if (to.meta.guestOnly && isAuthenticated) {
-    next("/");
-  } else {
-    next();
+    return;
   }
+
+  // Авторизованный пользователь на гостевой странице -> на дашборд
+  if (to.meta.guestOnly && isAuthenticated) {
+    next("/dashboard");
+    return;
+  }
+
+  // Проверка админских прав
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    next("/dashboard");
+    return;
+  }
+
+  // Если все проверки пройдены
+  next();
 });
 
 export default router;

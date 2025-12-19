@@ -31,7 +31,6 @@ from dependencies import (
     require_admin,
     require_department_head,
     require_account_confirmation,
-    redis_client,
 )
 
 # схема авторизации для извлечения токена из заголовка Authorization
@@ -79,8 +78,36 @@ def create_first_admin():
 
 
 # Регистрация пользователя
+# В функции register в main.py добавьте проверку email:
 @app.post("/api/auth/register", response_model=TokenResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # Простая проверка email
+    if '@' not in user_data.email or '.' not in user_data.email.split('@')[-1]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Некорректный формат email",
+        )
+    
+    # Проверка пароля
+    if len(user_data.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пароль должен содержать минимум 6 символов",
+        )
+    
+    # Проверка полей для студентов
+    if user_data.role == UserRole.STUDENT:
+        if not user_data.course:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Для студента необходимо указать курс",
+            )
+        if not user_data.group:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Для студента необходимо указать группу",
+            )
+    
     # Проверка существующего пользователя
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -170,16 +197,11 @@ def refresh_token_endpoint(data: dict):
     )
 
 
-# Выход из системы
+# Выход из системы (упрощенная версия без Redis)
 @app.post("/api/auth/logout")
-def logout(
-    current_user: User = Depends(get_current_user),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    # Добавляем токен в черный список (если используем Redis)
-    token = credentials.credentials
-    redis_client.setex(f"blacklist:{token}", 3600, "1")  # Блокируем на 1 час
-
+def logout():
+    # В упрощенной версии просто сообщаем клиенту, что выход выполнен
+    # Клиент должен удалить токены на своей стороне
     return {"success": True, "message": "Успешный выход из системы"}
 
 

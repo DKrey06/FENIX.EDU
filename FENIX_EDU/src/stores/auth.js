@@ -3,7 +3,11 @@ import { ref, computed } from "vue";
 import axios from "axios";
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref(localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null);
+  const user = ref(
+    localStorage.getItem("user")
+      ? JSON.parse(localStorage.getItem("user"))
+      : null
+  );
   const token = ref(localStorage.getItem("access_token"));
   const refreshToken = ref(localStorage.getItem("refresh_token"));
   const isLoading = ref(false);

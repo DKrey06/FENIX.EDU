@@ -7,10 +7,22 @@
         </div>
 
         <div class="sidebar-content">
+          <!-- Информация о пользователе -->
+          <div class="sidebar-section" v-if="isAuthenticated">
+            <div class="user-info">
+              <div class="user-avatar">{{ userInitials }}</div>
+              <div class="user-details">
+                <div class="user-name">{{ user?.full_name }}</div>
+                <div class="user-role">{{ user?.role }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Меню -->
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
-              <router-link to="/" class="nav-item" :class="{ active: $route.path === '/' }">
+              <router-link to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
                 <span class="nav-icon">🏠</span>
                 <span class="nav-text">Главная</span>
               </router-link>
@@ -33,11 +45,24 @@
             </nav>
           </div>
 
+          <!-- Кнопка выхода -->
           <div class="sidebar-section">
-            <button class="logout-btn" @click="handleLogout">
+            <button v-if="isAuthenticated" class="logout-btn" @click="handleLogout">
               <span class="logout-icon">🚪</span>
               <span class="logout-text">Выход</span>
             </button>
+
+            <!-- Кнопки авторизации для гостей -->
+            <div v-else class="auth-buttons">
+              <router-link to="/login" class="auth-btn">
+                <span class="auth-icon">🔑</span>
+                <span class="auth-text">Войти</span>
+              </router-link>
+              <router-link to="/register" class="auth-btn auth-btn-primary">
+                <span class="auth-icon">📝</span>
+                <span class="auth-text">Регистрация</span>
+              </router-link>
+            </div>
           </div>
         </div>
       </aside>
@@ -68,9 +93,7 @@
                         <input type="checkbox" :id="'filter-' + filter.id" v-model="filter.selected"
                           class="filter-checkbox" />
                         <label :for="'filter-' + filter.id" class="filter-label">
-                          <span class="filter-icon">{{
-                            getFilterIcon(filter.name)
-                          }}</span>
+                          <span class="filter-icon">{{ getFilterIcon(filter.name) }}</span>
                           {{ filter.name }}
                         </label>
                       </div>
@@ -90,18 +113,12 @@
                     </div>
                     <div class="course-header">
                       <span class="course-status" :class="course.status">
-                        {{
-                          course.status === "inProgress"
-                            ? "В процессе"
-                            : "Завершен"
-                        }}
+                        {{ course.status === "inProgress" ? "В процессе" : "Завершен" }}
                       </span>
                     </div>
                     <div class="course-body">
                       <h3 class="course-title">{{ course.title }}</h3>
-                      <p class="course-description">
-                        {{ course.description }}
-                      </p>
+                      <p class="course-description">{{ course.description }}</p>
                       <div class="course-progress" v-if="course.status === 'inProgress'">
                         <div class="progress-bar">
                           <div class="progress-fill" :style="{ width: course.progress + '%' }"></div>
@@ -150,11 +167,22 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
-const activeStatus = ref("inProgress");
-const showFilter = ref(false);
+// Компьютед свойства
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
+const userInitials = computed(() => {
+  if (!user.value?.full_name) return "👤";
+  return user.value.full_name
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase();
+});
 
 // Фильтры
 const filters = ref([
@@ -167,20 +195,18 @@ const filters = ref([
 
 const getFilterIcon = (filterName) => {
   switch (filterName) {
-    case "Недавние":
-      return "🕒";
-    case "С высоким прогрессом":
-      return "📈";
-    case "С низким прогрессом":
-      return "📉";
-    case "Популярные":
-      return "🔥";
-    case "Новые":
-      return "🆕";
-    default:
-      return "✓";
+    case "Недавние": return "🕒";
+    case "С высоким прогрессом": return "📈";
+    case "С низким прогрессом": return "📉";
+    case "Популярные": return "🔥";
+    case "Новые": return "🆕";
+    default: return "✓";
   }
 };
+
+// Состояния
+const activeStatus = ref("inProgress");
+const showFilter = ref(false);
 
 // Курсы с прогрессом и датами
 const courses = ref([
@@ -303,12 +329,10 @@ const filteredCourses = computed(() => {
     .map((f) => f.name);
 
   if (selectedFilters.length > 0) {
-    // Фильтрация по выбранным критериям
     result = result.filter((course) => {
       return selectedFilters.some((filter) => {
         switch (filter) {
           case "Недавние":
-            // Показываем курсы, добавленные в последние 30 дней
             const courseDate = new Date(course.date);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -356,7 +380,17 @@ const closeFilterOnClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener("click", closeFilterOnClickOutside);
+
+  // Проверяем авторизацию при загрузке
+  if (localStorage.getItem("access_token")) {
+    try {
+      authStore.getCurrentUser();
+    } catch (error) {
+      console.error("Ошибка загрузки пользователя:", error);
+    }
+  }
 });
+
 onUnmounted(() => {
   document.removeEventListener("click", closeFilterOnClickOutside);
 });
@@ -365,11 +399,14 @@ const openCourse = (courseId) => {
   console.log("Открываем курс:", courseId);
   router.push({ name: "CourseView", params: { id: courseId } });
 };
-// Выход из системы
-const handleLogout = () => {
-  localStorage.removeItem("isAuthenticated");
-  localStorage.removeItem("userData");
-  router.push("/login");
+
+const handleLogout = async () => {
+  try {
+    await authStore.logout();
+    router.push("/");
+  } catch (error) {
+    console.error("Ошибка выхода:", error);
+  }
 };
 </script>
 
@@ -517,6 +554,98 @@ const handleLogout = () => {
 
 .logout-text {
   font-size: 0.95rem;
+}
+
+.auth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.auth-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #2f4156;
+  font-weight: 500;
+  transition: all 0.3s;
+  border: 2px solid rgba(47, 65, 86, 0.1);
+  cursor: pointer;
+  width: 100%;
+}
+
+.auth-btn:hover {
+  background: #f8f8f8;
+  border-color: #2f4156;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.1);
+}
+
+.auth-btn-primary {
+  background: #2f4156;
+  color: white;
+  border-color: #2f4156;
+}
+
+.auth-btn-primary:hover {
+  background: #1a2a3a;
+  border-color: #1a2a3a;
+}
+
+.auth-icon {
+  font-size: 1.25rem;
+  width: 24px;
+  text-align: center;
+}
+
+.auth-text {
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 2px solid rgba(47, 65, 86, 0.1);
+  margin-bottom: 1rem;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  background: #d3a5b1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #2f4156;
+  font-size: 0.9rem;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #2f4156;
+  margin-bottom: 0.25rem;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: #718096;
+  text-transform: capitalize;
 }
 
 .main-content {
