@@ -12,29 +12,48 @@
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
-              <router-link to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
-                <span class="nav-icon">🏠</span>
+              <router-link
+                to="/dashboard"
+                class="nav-item"
+                :class="{ active: $route.path === '/dashboard' }"
+              >
                 <span class="nav-text">Главная</span>
               </router-link>
-              <router-link to="/archive" class="nav-item" :class="{ active: $route.path === '/archive' }">
-                <span class="nav-icon">📚</span>
+              <router-link
+                to="/archive"
+                class="nav-item"
+                :class="{ active: $route.path === '/archive' }"
+              >
                 <span class="nav-text">Архив обучения</span>
               </router-link>
-              <router-link to="/messages" class="nav-item" :class="{ active: $route.path === '/messages' }">
-                <span class="nav-icon">💬</span>
+              <router-link
+                to="/messages"
+                class="nav-item"
+                :class="{ active: $route.path === '/messages' }"
+              >
                 <span class="nav-text">Мессенджер</span>
               </router-link>
-              <router-link to="/discussions" class="nav-item" :class="{ active: $route.path === '/discussions' }">
-                <span class="nav-icon">🗣️</span>
+              <router-link
+                to="/discussions"
+                class="nav-item"
+                :class="{ active: $route.path === '/discussions' }"
+              >
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link to="/courses" class="nav-item" :class="{ active: $route.path === '/courses' }">
-                <span class="nav-icon">📖</span>
+              <router-link
+                to="/courses"
+                class="nav-item"
+                :class="{ active: $route.path === '/courses' }"
+              >
                 <span class="nav-text">Курсы</span>
               </router-link>
-              <div v-if="user?.role === 'admin' || user?.role === 'department_head'" class="admin-link">
+              <div
+                v-if="
+                  user?.role === 'admin' || user?.role === 'department_head'
+                "
+                class="admin-link"
+              >
                 <router-link to="/admin" class="nav-item">
-                  <span class="nav-icon">👑</span>
                   <span class="nav-text">Админ-панель</span>
                 </router-link>
               </div>
@@ -43,19 +62,20 @@
 
           <!-- Кнопка выхода -->
           <div class="sidebar-section">
-            <button v-if="isAuthenticated" class="logout-btn" @click="handleLogout">
-              <span class="logout-icon">🚪</span>
+            <button
+              v-if="isAuthenticated"
+              class="logout-btn"
+              @click="handleLogout"
+            >
               <span class="logout-text">Выход</span>
             </button>
 
             <!-- Кнопки авторизации для гостей -->
             <div v-else class="auth-buttons">
               <router-link to="/login" class="auth-btn">
-                <span class="auth-icon">🔑</span>
                 <span class="auth-text">Войти</span>
               </router-link>
               <router-link to="/register" class="auth-btn auth-btn-primary">
-                <span class="auth-icon">📝</span>
                 <span class="auth-text">Регистрация</span>
               </router-link>
             </div>
@@ -70,12 +90,18 @@
               <h2 class="content-title">Дисциплины</h2>
               <div class="courses-controls">
                 <div class="status-buttons">
-                  <button class="status-btn" :class="{ active: activeStatus === 'inProgress' }"
-                    @click="setActiveStatus('inProgress')">
+                  <button
+                    class="status-btn"
+                    :class="{ active: activeStatus === 'inProgress' }"
+                    @click="setActiveStatus('inProgress')"
+                  >
                     В процессе
                   </button>
-                  <button class="status-btn" :class="{ active: activeStatus === 'completed' }"
-                    @click="setActiveStatus('completed')">
+                  <button
+                    class="status-btn"
+                    :class="{ active: activeStatus === 'completed' }"
+                    @click="setActiveStatus('completed')"
+                  >
                     Завершенные
                   </button>
                 </div>
@@ -85,11 +111,24 @@
                   </button>
                   <div class="filter-dropdown" v-if="showFilter">
                     <div class="filter-options">
-                      <div class="filter-option" v-for="filter in filters" :key="filter.id">
-                        <input type="checkbox" :id="'filter-' + filter.id" v-model="filter.selected"
-                          class="filter-checkbox" />
-                        <label :for="'filter-' + filter.id" class="filter-label">
-                          <span class="filter-icon">{{ getFilterIcon(filter.name) }}</span>
+                      <div
+                        class="filter-option"
+                        v-for="filter in filters"
+                        :key="filter.id"
+                      >
+                        <input
+                          type="checkbox"
+                          :id="'filter-' + filter.id"
+                          v-model="filter.selected"
+                          class="filter-checkbox"
+                        />
+                        <label
+                          :for="'filter-' + filter.id"
+                          class="filter-label"
+                        >
+                          <span class="filter-icon">{{
+                            getFilterIcon(filter.name)
+                          }}</span>
                           {{ filter.name }}
                         </label>
                       </div>
@@ -102,24 +141,44 @@
             <div class="courses-container">
               <div class="courses-wrapper">
                 <div class="courses-grid">
-                  <div v-for="course in filteredCourses" :key="course.id" class="course-card"
-                    @click="openCourse(course.id)">
+                  <div
+                    v-for="course in filteredCourses"
+                    :key="course.id"
+                    class="course-card"
+                    @click="openCourse(course.id)"
+                  >
                     <div class="course-image">
-                      <img src="@/assets/images/Course.png" alt="Course" class="course-img" />
+                      <img
+                        src="@/assets/images/Course.png"
+                        alt="Course"
+                        class="course-img"
+                      />
                     </div>
                     <div class="course-header">
                       <span class="course-status" :class="course.status">
-                        {{ course.status === "inProgress" ? "В процессе" : "Завершен" }}
+                        {{
+                          course.status === "inProgress"
+                            ? "В процессе"
+                            : "Завершен"
+                        }}
                       </span>
                     </div>
                     <div class="course-body">
                       <h3 class="course-title">{{ course.title }}</h3>
                       <p class="course-description">{{ course.description }}</p>
-                      <div class="course-progress" v-if="course.status === 'inProgress'">
+                      <div
+                        class="course-progress"
+                        v-if="course.status === 'inProgress'"
+                      >
                         <div class="progress-bar">
-                          <div class="progress-fill" :style="{ width: course.progress + '%' }"></div>
+                          <div
+                            class="progress-fill"
+                            :style="{ width: course.progress + '%' }"
+                          ></div>
                         </div>
-                        <span class="progress-text">{{ course.progress }}%</span>
+                        <span class="progress-text"
+                          >{{ course.progress }}%</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -132,7 +191,11 @@
             <div class="info-card messenger-card">
               <h3 class="info-title">Мессенджер</h3>
               <div class="teachers-list">
-                <div v-for="teacher in teachers" :key="teacher.id" class="teacher-item">
+                <div
+                  v-for="teacher in teachers"
+                  :key="teacher.id"
+                  class="teacher-item"
+                >
                   <div class="teacher-avatar">{{ teacher.avatar }}</div>
                   <div class="teacher-info">
                     <div class="teacher-name">{{ teacher.name }}</div>
@@ -147,8 +210,11 @@
             <div class="info-card discussions-card">
               <h3 class="info-title">Обсуждения</h3>
               <div class="discussions-list">
-                <div v-for="discussion in discussions" :key="discussion.id" class="discussion-item">
-                  <div class="discussion-icon">💬</div>
+                <div
+                  v-for="discussion in discussions"
+                  :key="discussion.id"
+                  class="discussion-item"
+                >
                   <div class="discussion-name">{{ discussion.name }}</div>
                 </div>
               </div>
@@ -172,10 +238,10 @@ const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 const userInitials = computed(() => {
-  if (!user.value?.full_name) return "👤";
+  if (!user.value?.full_name) return "";
   return user.value.full_name
     .split(" ")
-    .map(n => n[0])
+    .map((n) => n[0])
     .join("")
     .toUpperCase();
 });
@@ -191,12 +257,18 @@ const filters = ref([
 
 const getFilterIcon = (filterName) => {
   switch (filterName) {
-    case "Недавние": return "🕒";
-    case "С высоким прогрессом": return "📈";
-    case "С низким прогрессом": return "📉";
-    case "Популярные": return "🔥";
-    case "Новые": return "🆕";
-    default: return "✓";
+    case "Недавние":
+      return "";
+    case "С высоким прогрессом":
+      return "";
+    case "С низким прогрессом":
+      return "";
+    case "Популярные":
+      return "";
+    case "Новые":
+      return "";
+    default:
+      return "✓";
   }
 };
 

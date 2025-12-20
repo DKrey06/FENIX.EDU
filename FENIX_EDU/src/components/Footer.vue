@@ -11,15 +11,12 @@
 
         <div class="footer__contacts-single">
           <div class="contact-item-single">
-            <span class="contact-icon">📧</span>
             <span class="contact-text">support@fenixedu.ru</span>
           </div>
           <div class="contact-item-single">
-            <span class="contact-icon">📞</span>
             <span class="contact-text">+7 (XXX) XXX-XX-XX</span>
           </div>
           <div class="contact-item-single">
-            <span class="contact-icon">📍</span>
             <span class="contact-text"
               >ДВФУ. Приморский край, г. Владивосток, о. Русский, п. Аякс,
               10.</span

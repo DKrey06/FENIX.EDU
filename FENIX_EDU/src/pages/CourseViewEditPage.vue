@@ -2,18 +2,34 @@
   <div class="course-detail-page">
     <div class="course-header">
       <div class="breadcrumb">
-        <router-link :to="{ name: 'CourseView', params: { id: route.params.id } }" class="breadcrumb-link">
+        <router-link
+          :to="{ name: 'CourseView', params: { id: route.params.id } }"
+          class="breadcrumb-link"
+        >
           <span class="breadcrumb-icon">←</span>
           Просмотр курса
         </router-link>
       </div>
       <div class="header-content">
-        <h1 class="course-title">{{ currentCourse.title || currentCourse.name }}</h1>
+        <h1 class="course-title">
+          {{ currentCourse.title || currentCourse.name }}
+        </h1>
         <div class="course-meta">
           <div class="meta-item">
-            <span class="meta-dot" :class="currentCourse.status === 'inProgress' ? 'dot-progress' : 'dot-done'"></span>
+            <span
+              class="meta-dot"
+              :class="
+                currentCourse.status === 'inProgress'
+                  ? 'dot-progress'
+                  : 'dot-done'
+              "
+            ></span>
             <span class="meta-text">
-              {{ currentCourse.status === "inProgress" ? "В процессе" : "Завершен" }}
+              {{
+                currentCourse.status === "inProgress"
+                  ? "В процессе"
+                  : "Завершен"
+              }}
             </span>
           </div>
           <div class="meta-item" v-if="currentCourse.status === 'inProgress'">
@@ -30,12 +46,10 @@
           <h2 class="sections-title">Редактирование содержания</h2>
           <div class="edit-controls">
             <button class="save-btn" @click="saveChanges" :disabled="isSaving">
-              <span class="save-icon">{{ isSaving ? '⏳' : '💾' }}</span>
-              {{ isSaving ? 'Сохранение...' : 'Сохранить' }}
+              <span class="save-icon">{{ isSaving ? "⏳" : "💾" }}</span>
+              {{ isSaving ? "Сохранение..." : "Сохранить" }}
             </button>
-            <button class="cancel-btn" @click="cancelEdit">
-              Отмена
-            </button>
+            <button class="cancel-btn" @click="cancelEdit">Отмена</button>
           </div>
         </div>
 
@@ -112,7 +126,10 @@
                     :key="file.id"
                     class="file-item"
                   >
-                    <div class="file-thumb" v-if="isImage(file.name) && file.url">
+                    <div
+                      class="file-thumb"
+                      v-if="isImage(file.name) && file.url"
+                    >
                       <img
                         :src="API_BASE + file.url"
                         :alt="file.name"
@@ -123,7 +140,9 @@
 
                     <div class="file-main">
                       <span class="file-name">{{ file.name }}</span>
-                      <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                      <span class="file-size">{{
+                        formatFileSize(file.size)
+                      }}</span>
                     </div>
                     <button
                       class="file-delete-btn"
@@ -135,7 +154,10 @@
                 </div>
               </div>
 
-              <button class="add-subsection-btn" @click="addSubsection(section.id)">
+              <button
+                class="add-subsection-btn"
+                @click="addSubsection(section.id)"
+              >
                 Добавить задание
               </button>
             </div>
@@ -348,7 +370,7 @@ const addSubsection = (sectionId) => {
   const sectionIndex = sections.value.findIndex((s) => s.id === sectionId);
   const newSubsection = {
     id: Date.now(),
-    icon: "📝",
+    icon: "",
     title: "Новое задание",
     status: "status-pending",
     statusIcon: "▶",

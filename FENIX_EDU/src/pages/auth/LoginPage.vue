@@ -23,9 +23,15 @@
             <div class="form-group">
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
-                <span class="input-icon">📧</span>
-                <input v-model="loginData.email" type="email" id="email" placeholder="student@fenixedu.ru" required
-                  class="form-input" :class="{ error: errors.email }" />
+                <input
+                  v-model="loginData.email"
+                  type="email"
+                  id="email"
+                  placeholder="student@fenixedu.ru"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.email }"
+                />
               </div>
               <div v-if="errors.email" class="error-message">
                 {{ errors.email }}
@@ -38,10 +44,20 @@
                 <a href="#" class="forgot-password">Забыли пароль?</a>
               </div>
               <div class="input-group">
-                <span class="input-icon">🔒</span>
-                <input v-model="loginData.password" :type="showPassword ? 'text' : 'password'" id="password"
-                  placeholder="Введите ваш пароль" required class="form-input" :class="{ error: errors.password }" />
-                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
+                <input
+                  v-model="loginData.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  id="password"
+                  placeholder="Введите ваш пароль"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.password }"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showPassword = !showPassword"
+                >
                   {{ showPassword ? "🙈" : "👁️" }}
                 </button>
               </div>
@@ -51,8 +67,15 @@
             </div>
 
             <div class="remember-me">
-              <input type="checkbox" id="remember" v-model="loginData.remember" class="checkbox" />
-              <label for="remember" class="checkbox-label">Запомнить меня</label>
+              <input
+                type="checkbox"
+                id="remember"
+                v-model="loginData.remember"
+                class="checkbox"
+              />
+              <label for="remember" class="checkbox-label"
+                >Запомнить меня</label
+              >
             </div>
 
             <button type="submit" class="submit-btn" :disabled="isLoading">
@@ -63,7 +86,9 @@
             <div class="auth-footer">
               <p class="footer-text">
                 Ещё нет аккаунта?
-                <router-link to="/register" class="auth-link">Зарегистрироваться</router-link>
+                <router-link to="/register" class="auth-link"
+                  >Зарегистрироваться</router-link
+                >
               </p>
             </div>
           </form>
@@ -137,16 +162,16 @@ const handleLogin = async () => {
     // Проверяем статус пользователя после входа
     const user = authStore.user;
 
-    if (user && user.status === 'pending') {
+    if (user && user.status === "pending") {
       // Если статус "ожидает подтверждения", перенаправляем на waiting-approval
       router.push("/waiting-approval");
-    } else if (user && user.status === 'active') {
+    } else if (user && user.status === "active") {
       // Если аккаунт активен, перенаправляем на dashboard
       router.push("/dashboard");
-    } else if (user && user.status === 'rejected') {
+    } else if (user && user.status === "rejected") {
       // Если аккаунт отклонен
       errors.password = "Ваш аккаунт был отклонен администратором";
-    } else if (user && user.status === 'blocked') {
+    } else if (user && user.status === "blocked") {
       // Если аккаунт заблокирован
       errors.password = "Ваш аккаунт заблокирован";
     } else {

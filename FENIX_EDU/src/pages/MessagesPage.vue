@@ -62,9 +62,7 @@
               class="action-btn"
               title="Информация"
               @click="toggleTeacherInfo"
-            >
-              <span class="action-icon">ℹ️</span>
-            </button>
+            ></button>
           </div>
         </div>
 
@@ -147,7 +145,7 @@
         <div class="info-sections">
           <div class="info-section">
             <h4 class="section-title">
-              <span class="section-icon">📚</span>
+              <span class="section-icon"></span>
               Дисциплины
             </h4>
             <div class="section-content">
@@ -165,7 +163,7 @@
 
           <div class="info-section">
             <h4 class="section-title">
-              <span class="section-icon">🕒</span>
+              <span class="section-icon"></span>
               Расписание консультаций
             </h4>
             <div class="section-content">
@@ -186,20 +184,20 @@
 
           <div class="info-section">
             <h4 class="section-title">
-              <span class="section-icon">📞</span>
+              <span class="section-icon"></span>
               Контакты
             </h4>
             <div class="section-content">
               <div class="contact-info-item">
-                <span class="contact-icon">📧</span>
+                <span class="contact-icon"></span>
                 <span class="contact-text">teacher@fenixedu.ru</span>
               </div>
               <div class="contact-info-item">
-                <span class="contact-icon">📱</span>
+                <span class="contact-icon"></span>
                 <span class="contact-text">+7 (XXX) XXX-XX-XX</span>
               </div>
               <div class="contact-info-item">
-                <span class="contact-icon">🏢</span>
+                <span class="contact-icon"></span>
                 <span class="contact-text">Каб. 305, корпус А</span>
               </div>
             </div>
@@ -208,7 +206,7 @@
 
         <div class="panel-footer">
           <button class="btn btn-schedule" @click="openSchedule">
-            <span class="btn-icon">📅</span>
+            <span class="btn-icon"></span>
             <span class="btn-text">Записаться на консультацию</span>
           </button>
         </div>

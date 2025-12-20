@@ -11,11 +11,9 @@
         <h1 class="course-title">Название дисциплины</h1>
         <div class="course-meta">
           <div class="meta-item">
-            <span class="meta-icon">📚</span>
             <span class="meta-text">Курс на изучении</span>
           </div>
           <div class="meta-item">
-            <span class="meta-icon">⏰</span>
             <span class="meta-text">До конца курса осталось 15 дней</span>
           </div>
         </div>
@@ -26,12 +24,7 @@
       <div class="course-sections">
         <div class="sections-header">
           <h2 class="sections-title">Содержание курса</h2>
-          <button
-            class="edit-btn"
-            v-if="isTeacher"
-            @click="toggleEditMode"
-          >
-            <span class="edit-icon">✏️</span>
+          <button class="edit-btn" v-if="isTeacher" @click="toggleEditMode">
             {{ isEditMode ? "Сохранить" : "Редактировать" }}
           </button>
         </div>
@@ -52,17 +45,14 @@
             </div>
             <div class="subsection-list" v-if="activeSection === 1">
               <div class="subsection-item">
-                <span class="subsection-icon">📝</span>
                 <span class="subsection-name">Тест</span>
                 <div class="subsection-status status-completed">✓</div>
               </div>
               <div class="subsection-item">
-                <span class="subsection-icon">📄</span>
                 <span class="subsection-name">Текстовый документ</span>
                 <div class="subsection-status status-completed">✓</div>
               </div>
               <div class="subsection-item">
-                <span class="subsection-icon">🎬</span>
                 <span class="subsection-name">Видео</span>
                 <div class="subsection-status status-pending">▶</div>
               </div>
@@ -84,14 +74,12 @@
             </div>
             <div class="subsection-list" v-if="activeSection === 2">
               <div class="subsection-item">
-                <span class="subsection-icon">📚</span>
                 <span class="subsection-name">Лекционные материалы</span>
                 <div class="subsection-status status-pending">▶</div>
               </div>
               <div class="subsection-item">
-                <span class="subsection-icon">🔬</span>
                 <span class="subsection-name">Лабораторная работа</span>
-                <div class="subsection-status status-locked">🔒</div>
+                <div class="subsection-status status-locked"></div>
               </div>
             </div>
           </div>
@@ -126,9 +114,9 @@
             </div>
             <div class="subsection-list" v-if="activeSection === 4">
               <div class="subsection-item">
-                <span class="subsection-icon">📝</span>
+                <span class="subsection-icon"></span>
                 <span class="subsection-name">Итоговый тест</span>
-                <div class="subsection-status status-locked">🔒</div>
+                <div class="subsection-status status-locked"></div>
               </div>
             </div>
           </div>
@@ -147,7 +135,7 @@
       <div class="course-rating">
         <div class="rating-header">
           <h2 class="rating-title">
-            <span class="rating-icon">🏆</span>
+            <span class="rating-icon"></span>
             Рейтинг
           </h2>
           <div class="rating-info">
@@ -200,28 +188,24 @@
           <div class="stats-title">Статистика курса</div>
           <div class="stats-grid">
             <div class="stat-item">
-              <div class="stat-icon">📊</div>
               <div class="stat-content">
                 <div class="stat-value">87%</div>
                 <div class="stat-label">Средняя успеваемость</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">✅</div>
               <div class="stat-content">
                 <div class="stat-value">92%</div>
                 <div class="stat-label">Выполнено заданий</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">👥</div>
               <div class="stat-content">
                 <div class="stat-value">{{ students.length }}</div>
                 <div class="stat-label">Активных студентов</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">⏱️</div>
               <div class="stat-content">
                 <div class="stat-value">15</div>
                 <div class="stat-label">Дней до конца</div>
@@ -317,4 +301,3 @@ const addNewSection = () => {
   console.log("Добавление нового раздела");
 };
 </script>
-

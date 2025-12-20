@@ -12,7 +12,11 @@
 
       <div class="header__search" v-if="!isAuthPage">
         <div class="search-box">
-          <input type="text" placeholder="Поиск по курсам..." class="search-input" />
+          <input
+            type="text"
+            placeholder="Поиск по курсам..."
+            class="search-input"
+          />
           <button class="search-btn">
             <span class="search-icon">🔍</span>
           </button>
@@ -38,29 +42,44 @@
 
           <!-- Ссылка на админ-панель для админов -->
           <router-link v-if="isAdmin" to="/admin" class="admin-panel-link">
-            <span class="admin-icon">👑</span>
             <span class="admin-text">Админ-панель</span>
           </router-link>
         </div>
 
-        <div class="user-logo-container" @click="toggleProfileInfo" v-if="isAuthenticated && !isAuthPage"
-          ref="userLogo">
+        <div
+          class="user-logo-container"
+          @click="toggleProfileInfo"
+          v-if="isAuthenticated && !isAuthPage"
+          ref="userLogo"
+        >
           <img :src="userLogoUrl" alt="User Logo" class="user-logo" />
           <span class="user-logo-badge" v-if="hasNotifications">!</span>
         </div>
 
         <div class="auth-buttons" v-if="!isAuthenticated">
-          <router-link to="/login" class="auth-btn login-btn" :class="{ active: isLoginPage }">
+          <router-link
+            to="/login"
+            class="auth-btn login-btn"
+            :class="{ active: isLoginPage }"
+          >
             <span class="auth-btn__text">Войти</span>
           </router-link>
-          <router-link to="/register" class="auth-btn register-btn" :class="{ active: isRegisterPage }">
+          <router-link
+            to="/register"
+            class="auth-btn register-btn"
+            :class="{ active: isRegisterPage }"
+          >
             <span class="auth-btn__text">Регистрация</span>
           </router-link>
         </div>
 
         <!-- Плашка с информацией о профиле -->
-        <div class="profile-info-panel" v-if="showProfileInfo && isAuthenticated" ref="profilePanel"
-          :style="panelStyle">
+        <div
+          class="profile-info-panel"
+          v-if="showProfileInfo && isAuthenticated"
+          ref="profilePanel"
+          :style="panelStyle"
+        >
           <div class="profile-info-header">
             <div class="profile-avatar">
               <div class="avatar-initials">{{ userInitials }}</div>
@@ -119,11 +138,9 @@
 
           <div class="profile-info-footer">
             <router-link to="/profile" class="profile-link">
-              <span class="link-icon">👤</span>
               <span class="link-text">Мой профиль</span>
             </router-link>
             <button class="btn btn-logout" @click="handleLogout">
-              <span class="btn-icon">🚪</span>
               <span class="btn-text">Выйти</span>
             </button>
           </div>
@@ -161,40 +178,40 @@ const userName = computed(() => {
 });
 
 const userInitials = computed(() => {
-  if (!user.value?.full_name) return "👤";
+  if (!user.value?.full_name) return "";
   return user.value.full_name
     .split(" ")
-    .map(n => n[0])
+    .map((n) => n[0])
     .join("")
     .toUpperCase();
 });
 
 const formattedUserRole = computed(() => {
   const roles = {
-    student: 'Студент',
-    teacher: 'Преподаватель',
-    department_head: 'Зав. кафедрой',
-    admin: 'Администратор'
+    student: "Студент",
+    teacher: "Преподаватель",
+    department_head: "Зав. кафедрой",
+    admin: "Администратор",
   };
-  return roles[user.value?.role] || user.value?.role || 'Пользователь';
+  return roles[user.value?.role] || user.value?.role || "Пользователь";
 });
 
 const userRoleClass = computed(() => {
-  return `role-${user.value?.role || 'student'}`;
+  return `role-${user.value?.role || "student"}`;
 });
 
-const userEmail = computed(() => user.value?.email || '');
-const userGroup = computed(() => user.value?.group || '');
-const userCourse = computed(() => user.value?.course || '');
-const userFaculty = computed(() => user.value?.faculty || '');
+const userEmail = computed(() => user.value?.email || "");
+const userGroup = computed(() => user.value?.group || "");
+const userCourse = computed(() => user.value?.course || "");
+const userFaculty = computed(() => user.value?.faculty || "");
 const userStatus = computed(() => {
   const statuses = {
-    pending: 'Ожидает',
-    active: 'Активный',
-    rejected: 'Отклонен',
-    blocked: 'Заблокирован'
+    pending: "Ожидает",
+    active: "Активный",
+    rejected: "Отклонен",
+    blocked: "Заблокирован",
   };
-  return statuses[user.value?.status] || 'Активный';
+  return statuses[user.value?.status] || "Активный";
 });
 
 // Статистика (можно вынести в отдельный store или получать с API)
@@ -227,11 +244,14 @@ const panelStyle = computed(() => {
 });
 
 // Наблюдаем за изменениями авторизации
-watch(() => authStore.isAuthenticated, (newVal) => {
-  if (!newVal) {
-    showProfileInfo.value = false;
+watch(
+  () => authStore.isAuthenticated,
+  (newVal) => {
+    if (!newVal) {
+      showProfileInfo.value = false;
+    }
   }
-});
+);
 
 onMounted(() => {
   document.addEventListener("click", handleClickOutside);
@@ -733,9 +753,11 @@ const handleLogout = async () => {
 
 .stat-item {
   padding: 0.75rem;
-  background: linear-gradient(135deg,
-      rgba(240, 195, 209, 0.2) 0%,
-      rgba(200, 218, 232, 0.2) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(240, 195, 209, 0.2) 0%,
+    rgba(200, 218, 232, 0.2) 100%
+  );
   border-radius: 8px;
   border: 1px solid rgba(212, 185, 187, 0.3);
 }

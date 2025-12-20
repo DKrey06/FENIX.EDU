@@ -10,24 +10,39 @@
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
-              <router-link to="/" class="nav-item" :class="{ active: $route.path === '/' }">
-                <span class="nav-icon">🏠</span>
+              <router-link
+                to="/"
+                class="nav-item"
+                :class="{ active: $route.path === '/' }"
+              >
                 <span class="nav-text">Главная</span>
               </router-link>
-              <router-link to="/archive" class="nav-item" :class="{ active: $route.path === '/archive' }">
-                <span class="nav-icon">📚</span>
+              <router-link
+                to="/archive"
+                class="nav-item"
+                :class="{ active: $route.path === '/archive' }"
+              >
                 <span class="nav-text">Архив обучения</span>
               </router-link>
-              <router-link to="/messages" class="nav-item" :class="{ active: $route.path === '/messages' }">
-                <span class="nav-icon">💬</span>
+              <router-link
+                to="/messages"
+                class="nav-item"
+                :class="{ active: $route.path === '/messages' }"
+              >
                 <span class="nav-text">Мессенджер</span>
               </router-link>
-              <router-link to="/discussions" class="nav-item" :class="{ active: $route.path === '/discussions' }">
-                <span class="nav-icon">🗣️</span>
+              <router-link
+                to="/discussions"
+                class="nav-item"
+                :class="{ active: $route.path === '/discussions' }"
+              >
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link to="/courses" class="nav-item" :class="{ active: $route.path === '/courses' }">
-                <span class="nav-icon">📖</span>
+              <router-link
+                to="/courses"
+                class="nav-item"
+                :class="{ active: $route.path === '/courses' }"
+              >
                 <span class="nav-text">Курсы</span>
               </router-link>
             </nav>
@@ -35,7 +50,6 @@
 
           <div class="sidebar-section">
             <button class="logout-btn" @click="handleLogout">
-              <span class="logout-icon">🚪</span>
               <span class="logout-text">Выход</span>
             </button>
           </div>
@@ -67,7 +81,11 @@
                 <button class="filter-btn" @click="toggleFilter">Фильтр</button>
                 <div class="filter-dropdown" v-if="showFilter">
                   <div class="filter-options">
-                    <div class="filter-option" v-for="filter in filters" :key="filter.id">
+                    <div
+                      class="filter-option"
+                      v-for="filter in filters"
+                      :key="filter.id"
+                    >
                       <input
                         type="checkbox"
                         :id="'filter-' + filter.id"
@@ -75,7 +93,9 @@
                         class="filter-checkbox"
                       />
                       <label :for="'filter-' + filter.id" class="filter-label">
-                        <span class="filter-icon">{{ getFilterIcon(filter.name) }}</span>
+                        <span class="filter-icon">{{
+                          getFilterIcon(filter.name)
+                        }}</span>
                         {{ filter.name }}
                       </label>
                     </div>
@@ -95,7 +115,11 @@
                   @click="openCourse(course.id)"
                 >
                   <div class="course-image">
-                    <img src="@/assets/images/Course.png" alt="Course" class="course-img" />
+                    <img
+                      src="@/assets/images/Course.png"
+                      alt="Course"
+                      class="course-img"
+                    />
                   </div>
                   <div class="course-header">
                     <span class="course-status" :class="course.status">
@@ -109,18 +133,32 @@
                   <div class="course-body">
                     <h3 class="course-title">{{ course.title }}</h3>
                     <p class="course-description">
-                      {{ course.description || "Описание курса будет добавлено позже." }}
+                      {{
+                        course.description ||
+                        "Описание курса будет добавлено позже."
+                      }}
                     </p>
-                    <div class="course-progress" v-if="course.status === 'inProgress'">
+                    <div
+                      class="course-progress"
+                      v-if="course.status === 'inProgress'"
+                    >
                       <div class="progress-bar">
-                        <div class="progress-fill" :style="{ width: (course.progress || 0) + '%' }"></div>
+                        <div
+                          class="progress-fill"
+                          :style="{ width: (course.progress || 0) + '%' }"
+                        ></div>
                       </div>
-                      <span class="progress-text">{{ course.progress || 0 }}%</span>
+                      <span class="progress-text"
+                        >{{ course.progress || 0 }}%</span
+                      >
                     </div>
                   </div>
                 </div>
 
-                <div v-if="!isLoading && !filteredCourses.length" class="empty-structure">
+                <div
+                  v-if="!isLoading && !filteredCourses.length"
+                  class="empty-structure"
+                >
                   Курсы по выбранным параметрам не найдены.
                 </div>
               </div>
@@ -161,15 +199,15 @@ const filters = ref([
 const getFilterIcon = (filterName) => {
   switch (filterName) {
     case "Недавние":
-      return "🕒";
+      return "";
     case "С высоким прогрессом":
-      return "📈";
+      return "";
     case "С низким прогрессом":
-      return "📉";
+      return "";
     case "Популярные":
-      return "🔥";
+      return "";
     case "Новые":
-      return "🆕";
+      return "";
     default:
       return "✓";
   }

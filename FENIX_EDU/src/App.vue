@@ -6,14 +6,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-import Header from './components/Header.vue';
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import Header from "./components/Header.vue";
 
 const route = useRoute();
 
 const isAuthPage = computed(() => {
-  return route.path === '/login' || route.path === '/register' || route.path === '/';
+  return (
+    route.path === "/login" || route.path === "/register" || route.path === "/"
+  );
 });
 </script>
 
@@ -30,7 +32,8 @@ const isAuthPage = computed(() => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
   color: #2f4156;
 }

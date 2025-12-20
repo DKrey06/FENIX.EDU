@@ -8,12 +8,25 @@
         </router-link>
       </div>
       <div class="header-content">
-        <h1 class="course-title">{{ currentCourse.title || currentCourse.name }}</h1>
+        <h1 class="course-title">
+          {{ currentCourse.title || currentCourse.name }}
+        </h1>
         <div class="course-meta">
           <div class="meta-item">
-            <span class="meta-dot" :class="currentCourse.status === 'inProgress' ? 'dot-progress' : 'dot-done'"></span>
+            <span
+              class="meta-dot"
+              :class="
+                currentCourse.status === 'inProgress'
+                  ? 'dot-progress'
+                  : 'dot-done'
+              "
+            ></span>
             <span class="meta-text">
-              {{ currentCourse.status === "inProgress" ? "В процессе" : "Завершен" }}
+              {{
+                currentCourse.status === "inProgress"
+                  ? "В процессе"
+                  : "Завершен"
+              }}
             </span>
           </div>
           <div class="meta-item" v-if="currentCourse.status === 'inProgress'">
@@ -29,12 +42,8 @@
       <div class="course-sections">
         <div class="sections-header">
           <h2 class="sections-title">Содержание курса</h2>
-          <button
-            v-if="canEdit"
-            class="edit-btn"
-            @click="handleEdit"
-          >
-            ✏️ Редактировать
+          <button v-if="canEdit" class="edit-btn" @click="handleEdit">
+            Редактировать
           </button>
         </div>
 
@@ -96,9 +105,7 @@
                         class="thumb-img"
                       />
                     </button>
-                    <div class="file-icon" v-else>
-                      📄
-                    </div>
+                    <div class="file-icon" v-else>📄</div>
 
                     <div class="file-info">
                       <div class="file-name">{{ file.name }}</div>
@@ -125,28 +132,24 @@
           <div class="stats-title">Статистика курса</div>
           <div class="stats-grid">
             <div class="stat-item">
-              <div class="stat-icon">📊</div>
               <div class="stat-content">
                 <div class="stat-value">{{ currentCourse.progress || 0 }}%</div>
                 <div class="stat-label">Прогресс курса</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">📚</div>
               <div class="stat-content">
                 <div class="stat-value">{{ sections.length }}</div>
                 <div class="stat-label">Разделов</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">📝</div>
               <div class="stat-content">
                 <div class="stat-value">{{ totalSubsections }}</div>
                 <div class="stat-label">Заданий</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">⭐</div>
               <div class="stat-content">
                 <div class="stat-value">4.8</div>
                 <div class="stat-label">Рейтинг</div>
@@ -158,11 +161,7 @@
     </div>
 
     <!-- полноэкранный просмотр изображения -->
-    <div
-      v-if="previewImageUrl"
-      class="image-modal"
-      @click.self="closeImage"
-    >
+    <div v-if="previewImageUrl" class="image-modal" @click.self="closeImage">
       <div class="image-modal-content">
         <img :src="previewImageUrl" :alt="previewImageName" />
         <div class="image-modal-footer">

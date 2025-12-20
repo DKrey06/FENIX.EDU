@@ -33,9 +33,7 @@
         <button @click="refreshStatus" class="refresh-btn">
           Обновить статус
         </button>
-        <button @click="logout" class="logout-btn">
-          Выйти
-        </button>
+        <button @click="logout" class="logout-btn">Выйти</button>
       </div>
 
       <div class="contact">
@@ -49,54 +47,63 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
 const authStore = useAuthStore();
 const user = ref(null);
-const status = ref('pending');
+const status = ref("pending");
 let intervalId = null;
 
 const statusConfig = {
   pending: {
-    icon: '⏳',
-    title: 'Ожидание подтверждения',
-    message: 'Ваш аккаунт ожидает подтверждения администратором.',
-    class: 'pending'
+    icon: "",
+    title: "Ожидание подтверждения",
+    message: "Ваш аккаунт ожидает подтверждения администратором.",
+    class: "pending",
   },
   active: {
-    icon: '✅',
-    title: 'Аккаунт подтвержден!',
-    message: 'Ваш аккаунт успешно подтвержден. Теперь вы можете войти в систему.',
-    class: 'active'
+    icon: "",
+    title: "Аккаунт подтвержден!",
+    message:
+      "Ваш аккаунт успешно подтвержден. Теперь вы можете войти в систему.",
+    class: "active",
   },
   rejected: {
-    icon: '❌',
-    title: 'Аккаунт отклонен',
-    message: 'К сожалению, ваш аккаунт был отклонен администратором.',
-    class: 'rejected'
+    icon: "",
+    title: "Аккаунт отклонен",
+    message: "К сожалению, ваш аккаунт был отклонен администратором.",
+    class: "rejected",
   },
   blocked: {
-    icon: '🚫',
-    title: 'Аккаунт заблокирован',
-    message: 'Ваш аккаунт был заблокирован администратором.',
-    class: 'blocked'
-  }
+    icon: "",
+    title: "Аккаунт заблокирован",
+    message: "Ваш аккаунт был заблокирован администратором.",
+    class: "blocked",
+  },
 };
 
-const statusClass = computed(() => statusConfig[status.value]?.class || 'pending');
-const statusIcon = computed(() => statusConfig[status.value]?.icon || '⏳');
-const statusTitle = computed(() => statusConfig[status.value]?.title || 'Ожидание подтверждения');
-const statusMessage = computed(() => statusConfig[status.value]?.message || 'Ваш аккаунт ожидает подтверждения администратором.');
+const statusClass = computed(
+  () => statusConfig[status.value]?.class || "pending"
+);
+const statusIcon = computed(() => statusConfig[status.value]?.icon || "⏳");
+const statusTitle = computed(
+  () => statusConfig[status.value]?.title || "Ожидание подтверждения"
+);
+const statusMessage = computed(
+  () =>
+    statusConfig[status.value]?.message ||
+    "Ваш аккаунт ожидает подтверждения администратором."
+);
 
 const roleLabel = computed(() => {
   const labels = {
-    student: 'Студент',
-    teacher: 'Преподаватель',
-    admin: 'Администратор',
-    department_head: 'Руководитель отдела'
+    student: "Студент",
+    teacher: "Преподаватель",
+    admin: "Администратор",
+    department_head: "Руководитель отдела",
   };
   return labels[user.value?.role] || user.value?.role;
 });
@@ -104,16 +111,16 @@ const roleLabel = computed(() => {
 const checkStatus = () => {
   // Для неаутентифицированных пользователей просто показываем ожидание
   if (!authStore.isAuthenticated) {
-    status.value = 'pending';
+    status.value = "pending";
     // Попытаемся получить данные из localStorage если они есть
     try {
-      const savedUser = localStorage.getItem('user_data');
+      const savedUser = localStorage.getItem("user_data");
       if (savedUser) {
         user.value = JSON.parse(savedUser);
-        status.value = user.value.status || 'pending';
+        status.value = user.value.status || "pending";
       }
     } catch (error) {
-      console.error('Ошибка чтения данных пользователя:', error);
+      console.error("Ошибка чтения данных пользователя:", error);
     }
     return;
   }
@@ -121,12 +128,12 @@ const checkStatus = () => {
   // Для аутентифицированных пользователей проверяем статус
   const currentUser = authStore.user;
   if (currentUser) {
-    status.value = currentUser.status || 'pending';
+    status.value = currentUser.status || "pending";
     user.value = currentUser;
 
     // Если аккаунт активен - перенаправляем на дашборд
-    if (status.value === 'active') {
-      router.push('/dashboard');
+    if (status.value === "active") {
+      router.push("/dashboard");
     }
   }
 };
@@ -137,11 +144,11 @@ const refreshStatus = () => {
 
 const logout = () => {
   authStore.logout();
-  router.push('/login');
+  router.push("/login");
 };
 
 const goToLogin = () => {
-  router.push('/login');
+  router.push("/login");
 };
 
 onMounted(() => {
