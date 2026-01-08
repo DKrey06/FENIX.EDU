@@ -66,6 +66,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+DEFAULT_COURSE_NAME = "Первый курс"
+DEFAULT_COURSE_DESCRIPTION = "Курс создаётся автоматически при первом запуске."
 
 # ---------- Pydantic-схемы для структуры курса ----------
 
@@ -120,8 +122,20 @@ def create_first_admin():
             db.add(admin_user)
             db.commit()
             print("✅ Создан первый администратор: admin@fenixedu.ru / admin123")
+
+        course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
+        if not course:
+            course = Course(
+                name=DEFAULT_COURSE_NAME,
+                description=DEFAULT_COURSE_DESCRIPTION,
+            )
+            db.add(course)
+            db.commit()
+            print(f"✅ Создан стартовый курс: {DEFAULT_COURSE_NAME}")
     finally:
         db.close()
+
+
 
 # ---------- auth ----------
 
