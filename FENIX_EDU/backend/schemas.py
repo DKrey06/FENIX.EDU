@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     confirmed_at: Optional[datetime]
     confirmed_by: Optional[int]
-    
+
     class Config:
         from_attributes = True
 
@@ -63,3 +63,29 @@ class CourseCreate(BaseModel):
 class GroupCreate(BaseModel):
     name: str
     course_id: int
+
+class DiscussionCommentCreate(BaseModel):
+    course_id: int
+    subsection_id: int
+    content: str = Field(min_length=1)
+
+
+class DiscussionReplyCreate(BaseModel):
+    content: str = Field(min_length=1)
+
+
+class DiscussionReplyOut(BaseModel):
+    id: int
+    author_name: str
+    author_role: UserRole
+    content: str
+    created_at: datetime
+
+
+class DiscussionCommentOut(BaseModel):
+    id: int
+    author_name: str
+    author_role: UserRole
+    content: str
+    created_at: datetime
+    replies: List[DiscussionReplyOut] = []

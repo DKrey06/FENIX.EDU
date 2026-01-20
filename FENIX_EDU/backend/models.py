@@ -39,7 +39,6 @@ class User(Base):
     role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.STUDENT)
     status = Column(SQLEnum(UserStatus), nullable=False, default=UserStatus.PENDING)
 
-    # Поля для студентов
     course = Column(String, nullable=True)
     group = Column(String, nullable=True)
 
@@ -47,7 +46,6 @@ class User(Base):
     confirmed_at = Column(DateTime, nullable=True)
     confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    # Отношения
     confirmations_given = relationship("User", foreign_keys=[confirmed_by])
 
     def to_dict(self):
@@ -107,7 +105,42 @@ class CourseStructureModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), unique=True, index=True, nullable=False)
-    # храним всю структуру (sections / subsections / files) как JSON
     data = Column(JSON, nullable=False)
 
     course = relationship("Course", backref="structure")
+
+
+class DiscussionComment(Base):
+    __tablename__ = "discussion_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), index=True, nullable=False)
+    subsection_id = Column(Integer, index=True, nullable=False)
+
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    author = relationship("User")
+    replies = relationship(
+        "DiscussionReply",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+        order_by="DiscussionReply.created_at",
+    )
+
+
+class DiscussionReply(Base):
+    __tablename__ = "discussion_replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("discussion_comments.id"), index=True, nullable=False)
+
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    author = relationship("User")
+    comment = relationship("DiscussionComment", back_populates="replies")

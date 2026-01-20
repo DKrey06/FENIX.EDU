@@ -13,7 +13,7 @@ import os
 from pydantic import BaseModel
 
 from database import engine, get_db, Base
-from models import User, Course, Group, UserRole, UserStatus, CourseStructureModel
+from models import User, Course, Group, UserRole, UserStatus, CourseStructureModel, DiscussionComment, DiscussionReply
 from schemas import (
     UserCreate,
     UserLogin,
@@ -23,7 +23,11 @@ from schemas import (
     UserListResponse,
     CourseCreate,
     GroupCreate,
+    DiscussionCommentCreate,
+    DiscussionReplyCreate,
+    DiscussionCommentOut,
 )
+
 from settings import (
     verify_password,
     get_password_hash,
@@ -405,7 +409,6 @@ def update_course_structure(
         db.add(cs)
         db.flush()
 
-    # подставляем уже загруженные файлы по subsection_id
     for section in structure.sections:
         for subsection in section.subsections:
             if subsection.id is not None and subsection.id in subsection_files:
@@ -476,8 +479,105 @@ def get_groups(
     groups = query.all()
     return [group.to_dict() for group in groups]
 
-# ---------- файлы подразделов ----------
+# ---------- discussions ----------
+@app.get("/api/discussions", response_model=List[DiscussionCommentOut])
+def get_discussions(
+    course_id: int,
+    subsection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = (
+        db.query(DiscussionComment)
+        .filter(DiscussionComment.course_id == course_id)
+        .filter(DiscussionComment.subsection_id == subsection_id)
+        .order_by(DiscussionComment.created_at.asc())
+        .all()
+    )
 
+    result = []
+    for c in items:
+        replies = []
+        for r in c.replies:
+            replies.append(
+                {
+                    "id": r.id,
+                    "author_name": r.author.full_name if r.author else "",
+                    "author_role": r.author.role if r.author else UserRole.STUDENT,
+                    "content": r.content,
+                    "created_at": r.created_at,
+                }
+            )
+
+        result.append(
+            {
+                "id": c.id,
+                "author_name": c.author.full_name if c.author else "",
+                "author_role": c.author.role if c.author else UserRole.STUDENT,
+                "content": c.content,
+                "created_at": c.created_at,
+                "replies": replies,
+            }
+        )
+
+    return result
+
+
+@app.post("/api/discussions", response_model=DiscussionCommentOut)
+def create_discussion_comment(
+    payload: DiscussionCommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = DiscussionComment(
+        course_id=payload.course_id,
+        subsection_id=payload.subsection_id,
+        author_id=current_user.id,
+        content=payload.content.strip(),
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    return {
+        "id": comment.id,
+        "author_name": current_user.full_name,
+        "author_role": current_user.role,
+        "content": comment.content,
+        "created_at": comment.created_at,
+        "replies": [],
+    }
+
+
+@app.post("/api/discussions/{comment_id}/replies")
+def create_discussion_reply(
+    comment_id: int,
+    payload: DiscussionReplyCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = db.query(DiscussionComment).filter(DiscussionComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Комментарий не найден")
+
+    reply = DiscussionReply(
+        comment_id=comment_id,
+        author_id=current_user.id,
+        content=payload.content.strip(),
+    )
+    db.add(reply)
+    db.commit()
+    db.refresh(reply)
+
+    return {
+        "id": reply.id,
+        "author_name": current_user.full_name,
+        "author_role": current_user.role,
+        "content": reply.content,
+        "created_at": reply.created_at,
+    }
+
+# ---------- файлы подразделов ----------
 
 @app.post(
     "/api/subsections/{subsection_id}/files",
