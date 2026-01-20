@@ -114,6 +114,7 @@ subsection_files: Dict[int, List[SubsectionFileSchema]] = {}
 def create_first_admin():
     db = next(get_db())
     try:
+        # --- admin ---
         admin = db.query(User).filter(User.email == "admin@fenixedu.ru").first()
         if not admin:
             admin_user = User(
@@ -128,17 +129,94 @@ def create_first_admin():
             db.commit()
             print("✅ Создан первый администратор: admin@fenixedu.ru / admin123")
 
-        course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
-        if not course:
+        # --- helper: дефолтная структура ---
+        def build_default_structure(course_id: int) -> dict:
+            # делаем subsection_id уникальным на курс (чтобы не пересекались между курсами)
+            base = course_id * 1000
+            return {
+                "sections": [
+                    {
+                        "id": base + 1,
+                        "number": 1,
+                        "title": "Введение",
+                        "subsections": [
+                            {
+                                "id": base + 101,
+                                "icon": "📌",
+                                "title": "О курсе",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                            {
+                                "id": base + 102,
+                                "icon": "🧭",
+                                "title": "Навигация и правила",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                        ],
+                    },
+                    {
+                        "id": base + 2,
+                        "number": 2,
+                        "title": "Первый модуль",
+                        "subsections": [
+                            {
+                                "id": base + 201,
+                                "icon": "📚",
+                                "title": "Материалы",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                            {
+                                "id": base + 202,
+                                "icon": "📝",
+                                "title": "Задания",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                        ],
+                    },
+                ]
+            }
+
+        courses_count = db.query(Course).count()
+        if courses_count == 0:
             course = Course(
                 name=DEFAULT_COURSE_NAME,
                 description=DEFAULT_COURSE_DESCRIPTION,
             )
             db.add(course)
             db.commit()
-            print(f"✅ Создан стартовый курс: {DEFAULT_COURSE_NAME}")
+            db.refresh(course)
+            print(f"Создан стартовый курс: {DEFAULT_COURSE_NAME}")
+
+            cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
+            db.add(cs)
+            db.commit()
+            print("Создана стартовая структура курса")
+
+        else:
+            course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
+            if course:
+                exists_structure = (
+                    db.query(CourseStructureModel)
+                    .filter(CourseStructureModel.course_id == course.id)
+                    .first()
+                )
+                if not exists_structure:
+                    cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
+                    db.add(cs)
+                    db.commit()
+                    print(" Для существующего начального курса создана структура")
+
     finally:
         db.close()
+
 
 
 

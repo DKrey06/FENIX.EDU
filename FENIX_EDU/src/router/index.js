@@ -110,8 +110,20 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+
+  // 1) ждём инициализацию auth (один раз на старте)
+  // ВАЖНО: в сторе должен быть метод init() и флаг isReady (см. ниже)
+  if (!authStore.isReady) {
+    try {
+      await authStore.init();
+    } catch (e) {
+      // если init упал — считаем что не авторизован
+      console.error("auth init failed", e);
+    }
+  }
+
   const isAuthenticated = authStore.isAuthenticated;
   const user = authStore.user;
 
@@ -129,8 +141,9 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
+  // 2) после init() только теперь можно редиректить на /login
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next("/login");
+    next({ name: "Login", query: { redirect: to.fullPath } });
     return;
   }
 
@@ -154,11 +167,6 @@ router.beforeEach((to, from, next) => {
       return;
     }
 
-    if (user.status === "active" && to.meta.guestOnly) {
-      next("/dashboard");
-      return;
-    }
-
     if (user.status === "rejected" || user.status === "blocked") {
       authStore.logout();
       next("/login");
@@ -179,5 +187,6 @@ router.beforeEach((to, from, next) => {
 
   next();
 });
+
 
 export default router;

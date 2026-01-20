@@ -247,11 +247,9 @@ const errorText = ref("");
 function isReplyOpen(commentId) {
   return !!replyOpen.value[commentId];
 }
-
 function openReply(commentId) {
   replyOpen.value = { ...replyOpen.value, [commentId]: true };
 }
-
 function closeReply(commentId) {
   replyDraft.value[commentId] = "";
   const next = { ...replyOpen.value };
@@ -366,19 +364,8 @@ async function apiPost(path, body) {
   return res.json();
 }
 
-function isSystemCourse(c) {
-  const name = (c?.name || "").trim().toLowerCase();
-  const desc = (c?.description || "").trim().toLowerCase();
-
-  if (name === "первый курс" || name === "first course") return true;
-  if (desc.includes("создается автоматически") || desc.includes("создаётся автоматически")) return true;
-
-  return false;
-}
-
-const visibleCourses = computed(() => {
-  return (courses.value || []).filter((c) => !isSystemCourse(c));
-});
+// показываем все курсы
+const visibleCourses = computed(() => courses.value || []);
 
 const activeSubsection = computed(() => {
   if (!activeSubsectionId.value) return null;
@@ -416,10 +403,11 @@ async function loadCourses() {
   loadingCourses.value = true;
 
   try {
-    courses.value = await apiGet("/api/courses");
+    const list = await apiGet("/api/courses");
+    courses.value = Array.isArray(list) ? list : [];
 
-    if (!activeCourseId.value && visibleCourses.value.length > 0) {
-      await selectCourse(visibleCourses.value[0].id);
+    if (!activeCourseId.value && courses.value.length > 0) {
+      await selectCourse(courses.value[0].id);
     }
   } catch (e) {
     errorText.value = "Не удалось загрузить курсы. Проверь авторизацию и доступ к API.";
