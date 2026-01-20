@@ -4,11 +4,12 @@ import App from "./App.vue";
 import router from "./router";
 import "./assets/main.css";
 
+import { useAuthStore } from "./stores/auth";
+
 const app = createApp(App);
 const pinia = createPinia();
 
 app.use(pinia);
-app.use(router);
 
 app.config.errorHandler = (err, vm, info) => {
   console.error("Глобальная ошибка Vue:", err);
@@ -61,68 +62,24 @@ const setupAuthInterceptor = () => {
 
 setupAuthInterceptor();
 
-app.mount("#app");
+app.use(router);
 
-import { useAuthStore } from "./stores/auth";
-
-setTimeout(() => {
+// ✅ Монтируем ТОЛЬКО после инициализации auth и готовности роутера
+(async () => {
   try {
     const authStore = useAuthStore();
-    console.log("Auth store инициализирован");
-
-    router.beforeEach((to, from, next) => {
-      const requiresAuth = to.matched.some(
-        (record) => record.meta.requiresAuth
-      );
-      const requiresAdmin = to.matched.some(
-        (record) => record.meta.requiresAdmin
-      );
-
-      if (requiresAuth && !authStore.isAuthenticated) {
-        console.log("Требуется аутентификация, перенаправляем на логин");
-        next("/login");
-        return;
-      }
-
-      if (requiresAdmin && !authStore.isAdmin) {
-        console.log("Требуются права администратора");
-        next("/dashboard");
-        return;
-      }
-
-      next();
-    });
-
-    if (localStorage.getItem("access_token")) {
-      authStore
-        .getCurrentUser()
-        .then((user) => {
-          if (user) {
-            console.log("Пользователь аутентифицирован:", user.email);
-
-            if (
-              router.currentRoute.value.path === "/login" ||
-              router.currentRoute.value.path === "/register" ||
-              router.currentRoute.value.path === "/"
-            ) {
-              router.push("/dashboard");
-            }
-          } else {
-            console.log("Пользователь не аутентифицирован");
-
-            if (router.currentRoute.value.meta?.requiresAuth) {
-              router.push("/login");
-            }
-          }
-        })
-        .catch((error) => {
-          console.error("Ошибка проверки аутентификации:", error);
-        });
+    if (typeof authStore.init === "function") {
+      await authStore.init();
     }
-  } catch (error) {
-    console.error("Ошибка инициализации auth store:", error);
+
+    await router.isReady();
+    app.mount("#app");
+  } catch (e) {
+    console.error("Ошибка инициализации приложения:", e);
+    await router.isReady();
+    app.mount("#app");
   }
-}, 100);
+})();
 
 window.addEventListener("unhandledrejection", (event) => {
   if (

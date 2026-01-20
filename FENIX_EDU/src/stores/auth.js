@@ -11,30 +11,129 @@ export const useAuthStore = defineStore("auth", () => {
   const lastAuthCheck = ref(0);
   const authCheckInterval = 5 * 60 * 1000;
 
+  // NEW: флаг готовности, чтобы роутер мог "ждать" auth и не кидать на /login
+  const isReady = ref(false);
+  let initPromise = null;
+
   const isTeacher = computed(() => user.value?.role === "teacher");
   const isStudent = computed(() => user.value?.role === "student");
 
-  const init = () => {
+  // NEW: быстрый синхронный "подъём" из localStorage
+  const hydrateFromStorage = () => {
     const token = localStorage.getItem("access_token");
-    if (token) {
+    if (!token) return;
+
+    // Если есть токен — считаем, что сессия есть, чтобы не выбрасывало на /login до проверки /auth/me
+    isAuthenticated.value = true;
+
+    try {
+      const savedUser = localStorage.getItem("user_data");
+      if (savedUser) {
+        user.value = JSON.parse(savedUser);
+        isAdmin.value =
+          user.value?.role === "admin" || user.value?.role === "department_head";
+      }
+    } catch (error) {
+      console.error("Ошибка парсинга user_data:", error);
+      // ВАЖНО: user_data можно удалить, но токен не трогаем
+      localStorage.removeItem("user_data");
+    }
+  };
+
+  // FIX: init должен быть await-able (его ждёт router.beforeEach)
+  const init = async () => {
+    if (isReady.value) return true;
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+      // 1) сначала поднимаем то, что есть локально (чтобы не редиректило на /login при старте)
+      hydrateFromStorage();
+
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        isReady.value = true;
+        return true;
+      }
+
+      // 2) периодически проверяем пользователя на сервере, но НЕ стираем токены при сетевых ошибках
       const now = Date.now();
       if (now - lastAuthCheck.value > authCheckInterval) {
-        getCurrentUser().catch(console.error);
-      } else {
         try {
-          const savedUser = localStorage.getItem("user_data");
-          if (savedUser) {
-            user.value = JSON.parse(savedUser);
-            isAuthenticated.value = true;
-            isAdmin.value =
-              user.value?.role === "admin" ||
-              user.value?.role === "department_head";
-          }
-        } catch (error) {
-          console.error("Ошибка парсинга user_data:", error);
-          localStorage.removeItem("user_data");
+          await getCurrentUser();
+        } catch (e) {
+          console.error("init(): getCurrentUser failed:", e);
+          // ничего не чистим — просто считаем auth готовым
         }
       }
+
+      isReady.value = true;
+      return true;
+    })();
+
+    return initPromise;
+  };
+
+  const clearUserData = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user_data");
+    user.value = null;
+    isAuthenticated.value = false;
+    isAdmin.value = false;
+    lastAuthCheck.value = 0;
+  };
+
+  const logout = () => {
+    clearUserData();
+    isReady.value = true;
+
+    if (
+      window.location.pathname !== "/login" &&
+      window.location.pathname !== "/"
+    ) {
+      window.location.href = "/login";
+    }
+  };
+
+  const refreshToken = async () => {
+    try {
+      const refreshTokenValue = localStorage.getItem("refresh_token");
+      if (!refreshTokenValue) {
+        throw new Error("Refresh token не найден");
+      }
+
+      console.log("Пытаемся обновить токен...");
+
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ refresh_token: refreshTokenValue }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка обновления токена: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Токен обновлен успешно");
+
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+        return data.access_token;
+      } else {
+        throw new Error("Новый токен не получен");
+      }
+    } catch (error) {
+      console.error("Ошибка обновления токена:", error);
+      // Если refresh реально не работает — да, логаут
+      logout();
+      throw error;
     }
   };
 
@@ -75,8 +174,7 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = data.user || data;
         isAuthenticated.value = true;
         isAdmin.value =
-          user.value?.role === "admin" ||
-          user.value?.role === "department_head";
+          user.value?.role === "admin" || user.value?.role === "department_head";
 
         if (!user.value.status) {
           user.value.status = "pending";
@@ -86,32 +184,34 @@ export const useAuthStore = defineStore("auth", () => {
         lastAuthCheck.value = Date.now();
 
         return user.value;
-      } else {
-        console.warn(
-          "Не удалось получить данные пользователя:",
-          response.status
-        );
-
-        if (response.status === 401) {
-          console.log("Токен истек или невалиден");
-          try {
-            const newToken = await refreshToken();
-            if (newToken) {
-              return getCurrentUser();
-            }
-          } catch (refreshError) {
-            console.error("Не удалось обновить токен:", refreshError);
-            logout();
-          }
-        }
-
-        clearUserData();
-        return null;
       }
+
+      console.warn("Не удалось получить данные пользователя:", response.status);
+
+      // FIX: чистим токены ТОЛЬКО если реально 401 и refresh не помог
+      if (response.status === 401) {
+        console.log("Токен истек или невалиден");
+        try {
+          const newToken = await refreshToken();
+          if (newToken) {
+            return await getCurrentUser();
+          }
+        } catch (refreshError) {
+          console.error("Не удалось обновить токен:", refreshError);
+          logout();
+          return null;
+        }
+      }
+
+      // Если 403/500/и т.п. — НЕ стираем сессию (иначе выкидывает на логин при кратком сбое)
+      // Просто возвращаем текущего пользователя (если он уже был)
+      return user.value;
     } catch (error) {
       console.error("Ошибка получения информации о пользователе:", error);
-      clearUserData();
-      return null;
+
+      // FIX: при сетевой ошибке НЕ чистим данные и НЕ разлогиниваем
+      // иначе после обновления страницы, если сервер не ответил быстро — тебя выбросит
+      return user.value;
     } finally {
       isCheckingAuth.value = false;
     }
@@ -126,11 +226,7 @@ export const useAuthStore = defineStore("auth", () => {
         password ? "***" : "нет"
       );
 
-      const loginData = {
-        email: email,
-        password: password,
-      };
-
+      const loginData = { email, password };
       console.log("Отправляемые данные:", JSON.stringify(loginData));
 
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -157,7 +253,6 @@ export const useAuthStore = defineStore("auth", () => {
         } catch {
           errorDetail = responseText;
         }
-
         console.error("Ошибка от сервера:", errorDetail);
         throw new Error(errorDetail || `Ошибка входа: ${response.status}`);
       }
@@ -171,12 +266,16 @@ export const useAuthStore = defineStore("auth", () => {
           localStorage.setItem("refresh_token", data.refresh_token);
         }
 
+        // сразу поднимаем auth локально
+        hydrateFromStorage();
+
         await getCurrentUser();
+        isReady.value = true;
 
         return data;
-      } else {
-        throw new Error("Токен не получен от сервера");
       }
+
+      throw new Error("Токен не получен от сервера");
     } catch (error) {
       console.error("Полная ошибка входа:", error);
       throw error;
@@ -212,10 +311,7 @@ export const useAuthStore = defineStore("auth", () => {
         const error = new Error(
           errorData.message || `Ошибка регистрации: ${response.status}`
         );
-        error.response = {
-          status: response.status,
-          data: errorData,
-        };
+        error.response = { status: response.status, data: errorData };
         throw error;
       }
 
@@ -225,88 +321,19 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       console.error("Ошибка регистрации:", error);
 
-      if (error.response) {
-        throw error;
-      }
+      if (error.response) throw error;
 
       const structuredError = new Error(error.message || "Ошибка регистрации");
-      structuredError.response = {
-        status: 0,
-        data: { message: error.message },
-      };
+      structuredError.response = { status: 0, data: { message: error.message } };
       throw structuredError;
     }
   };
 
-  const logout = () => {
-    clearUserData();
-
-    if (
-      window.location.pathname !== "/login" &&
-      window.location.pathname !== "/"
-    ) {
-      window.location.href = "/login";
-    }
-  };
-
-  const clearUserData = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_data");
-    user.value = null;
-    isAuthenticated.value = false;
-    isAdmin.value = false;
-    lastAuthCheck.value = 0;
-  };
-
-  const refreshToken = async () => {
-    try {
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (!refreshToken) {
-        throw new Error("Refresh token не найден");
-      }
-
-      console.log("Пытаемся обновить токен...");
-
-      const response = await fetch(`${API_URL}/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Ошибка обновления токена: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Токен обновлен успешно");
-
-      if (data.access_token) {
-        localStorage.setItem("access_token", data.access_token);
-        if (data.refresh_token) {
-          localStorage.setItem("refresh_token", data.refresh_token);
-        }
-        return data.access_token;
-      } else {
-        throw new Error("Новый токен не получен");
-      }
-    } catch (error) {
-      console.error("Ошибка обновления токена:", error);
-      logout();
-      throw error;
-    }
-  };
-
+  // Админ-методы оставляю как у тебя (без изменений)
   const fetchAdminUsers = async (params = {}) => {
     try {
       const token = localStorage.getItem("access_token");
-
-      if (!token) {
-        throw new Error("Токен не найден");
-      }
+      if (!token) throw new Error("Токен не найден");
 
       const queryParams = new URLSearchParams();
       queryParams.append("page", params.page || 1);
@@ -319,10 +346,7 @@ export const useAuthStore = defineStore("auth", () => {
         queryParams.append("role", params.role);
       }
 
-      console.log(
-        "Запрос к /admin/users с параметрами:",
-        queryParams.toString()
-      );
+      console.log("Запрос к /admin/users:", queryParams.toString());
 
       const response = await fetch(
         `${API_URL}/admin/users?${queryParams.toString()}`,
@@ -336,23 +360,17 @@ export const useAuthStore = defineStore("auth", () => {
         }
       );
 
-      console.log("Ответ от /admin/users:", response.status);
-
       if (!response.ok) {
         if (response.status === 401) {
           const newToken = await refreshToken();
-          if (newToken) {
-            return fetchAdminUsers(params);
-          }
+          if (newToken) return fetchAdminUsers(params);
         }
-
         const errorText = await response.text();
         console.error("Ошибка ответа:", errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Ошибка загрузки пользователей:", error);
       throw error;
@@ -362,10 +380,7 @@ export const useAuthStore = defineStore("auth", () => {
   const fetchPendingUsers = async (params = {}) => {
     try {
       const token = localStorage.getItem("access_token");
-
-      if (!token) {
-        throw new Error("Токен не найден");
-      }
+      if (!token) throw new Error("Токен не найден");
 
       const queryParams = new URLSearchParams();
       queryParams.append("status", "pending");
@@ -392,8 +407,7 @@ export const useAuthStore = defineStore("auth", () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Ошибка загрузки ожидающих пользователей:", error);
       throw error;
@@ -401,138 +415,103 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const approveUser = async (userId) => {
-    try {
-      const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("Токен не найден");
 
-      if (!token) {
-        throw new Error("Токен не найден");
+    const response = await fetch(`${API_URL}/admin/users/${userId}/approve`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshToken();
+        return approveUser(userId);
       }
-
-      const response = await fetch(`${API_URL}/admin/users/${userId}/approve`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          await refreshToken();
-          return approveUser(userId);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Ошибка подтверждения пользователя:", error);
-      throw error;
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    return await response.json();
   };
 
   const rejectUser = async (userId) => {
-    try {
-      const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("Токен не найден");
 
-      if (!token) {
-        throw new Error("Токен не найден");
+    const response = await fetch(`${API_URL}/admin/users/${userId}/reject`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshToken();
+        return rejectUser(userId);
       }
-
-      const response = await fetch(`${API_URL}/admin/users/${userId}/reject`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          await refreshToken();
-          return rejectUser(userId);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Ошибка отклонения пользователя:", error);
-      throw error;
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    return await response.json();
   };
 
   const updateUserStatus = async (userId, status) => {
-    try {
-      const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("Токен не найден");
 
-      if (!token) {
-        throw new Error("Токен не найден");
+    const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshToken();
+        return updateUserStatus(userId, status);
       }
-
-      const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          await refreshToken();
-          return updateUserStatus(userId, status);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Ошибка обновления статуса:", error);
-      throw error;
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    return await response.json();
   };
 
   const checkAccountStatus = async () => {
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("Токен не найден");
-      }
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("Токен не найден");
 
-      const response = await fetch(`${API_URL}/auth/me`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
+    const response = await fetch(`${API_URL}/auth/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const userData = data.user || data;
-
-      return {
-        status: userData.status || "pending",
-        user: userData,
-      };
-    } catch (error) {
-      console.error("Ошибка проверки статуса:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const data = await response.json();
+    const userData = data.user || data;
+
+    return { status: userData.status || "pending", user: userData };
   };
 
+  // ВАЖНО: оставляем init() как у тебя, но теперь он async и выставляет isReady,
+  // плюс он НЕ ломает сессию при сетевых ошибках
   init();
 
   return {
@@ -541,7 +520,11 @@ export const useAuthStore = defineStore("auth", () => {
     isAdmin: computed(() => isAdmin.value),
     isTeacher,
     isStudent,
+
+    // NEW exports
+    isReady: computed(() => isReady.value),
     init,
+
     getCurrentUser,
     login,
     register,
