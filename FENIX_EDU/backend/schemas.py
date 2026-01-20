@@ -89,3 +89,49 @@ class DiscussionCommentOut(BaseModel):
     content: str
     created_at: datetime
     replies: List[DiscussionReplyOut] = []
+
+# Добавить в schemas.py:
+
+class MessageCreate(BaseModel):
+    teacher_id: int
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class MessageResponse(BaseModel):
+    id: int
+    thread_id: int
+    sender_id: int
+    sender_name: str
+    sender_role: UserRole
+    content: str
+    is_read: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ThreadResponse(BaseModel):
+    id: int
+    student_id: int
+    teacher_id: int
+    student_name: str
+    teacher_name: str
+    teacher_avatar: str
+    last_message_at: datetime
+    unread_count: int
+    is_archived: bool
+    last_message: Optional[MessageResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UnreadCountResponse(BaseModel):
+    total_unread: int
+    thread_unread_counts: dict[int, int] = {}
+
+
+class TeacherListResponse(BaseModel):
+    teachers: List[UserResponse]
+    total: int

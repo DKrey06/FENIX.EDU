@@ -58,6 +58,12 @@ const routes = [
     meta: { guestOnly: true },
   },
   {
+    path: "/messages",
+    name: "Messages",
+    component: MessagesPage,
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/courses",
     name: "Courses",
     component: CoursesPage,

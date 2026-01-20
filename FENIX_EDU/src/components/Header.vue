@@ -12,11 +12,7 @@
 
       <div class="header__search" v-if="!isAuthPage">
         <div class="search-box">
-          <input
-            type="text"
-            placeholder="Поиск по курсам..."
-            class="search-input"
-          />
+          <input type="text" placeholder="Поиск по курсам..." class="search-input" />
           <button class="search-btn">
             <span class="search-icon">🔍</span>
           </button>
@@ -24,7 +20,7 @@
       </div>
 
       <div class="header__actions">
-        <button class="notification-btn" v-if="!isAuthPage && isAuthenticated">
+        <button class="notification-btn" v-if="!isAuthPage && isAuthenticated" @click="handleNotificationClick">
           <span class="notification-icon">🔔</span>
           <span class="notification-badge" v-if="notificationsCount > 0">
             {{ notificationsCount }}
@@ -46,40 +42,24 @@
           </router-link>
         </div>
 
-        <div
-          class="user-logo-container"
-          @click="toggleProfileInfo"
-          v-if="isAuthenticated && !isAuthPage"
-          ref="userLogo"
-        >
+        <div class="user-logo-container" @click="toggleProfileInfo" v-if="isAuthenticated && !isAuthPage"
+          ref="userLogo">
           <img :src="userLogoUrl" alt="User Logo" class="user-logo" />
           <span class="user-logo-badge" v-if="hasNotifications">!</span>
         </div>
 
         <div class="auth-buttons" v-if="!isAuthenticated">
-          <router-link
-            to="/login"
-            class="auth-btn login-btn"
-            :class="{ active: isLoginPage }"
-          >
+          <router-link to="/login" class="auth-btn login-btn" :class="{ active: isLoginPage }">
             <span class="auth-btn__text">Войти</span>
           </router-link>
-          <router-link
-            to="/register"
-            class="auth-btn register-btn"
-            :class="{ active: isRegisterPage }"
-          >
+          <router-link to="/register" class="auth-btn register-btn" :class="{ active: isRegisterPage }">
             <span class="auth-btn__text">Регистрация</span>
           </router-link>
         </div>
 
         <!-- Плашка с информацией о профиле -->
-        <div
-          class="profile-info-panel"
-          v-if="showProfileInfo && isAuthenticated"
-          ref="profilePanel"
-          :style="panelStyle"
-        >
+        <div class="profile-info-panel" v-if="showProfileInfo && isAuthenticated" ref="profilePanel"
+          :style="panelStyle">
           <div class="profile-info-header">
             <div class="profile-avatar">
               <div class="avatar-initials">{{ userInitials }}</div>
@@ -153,14 +133,19 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useMessengerStore } from "@/stores/messenger";
 import { useAuthStore } from "@/stores/auth";
 import userLogoCat from "@/assets/images/cat-logo.png";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const messengerStore = useMessengerStore();
 
-const notificationsCount = ref(3);
+const notificationsCount = computed(() => {
+  return messengerStore.totalUnread;
+});
+
 const showProfileInfo = ref(false);
 const userLogo = ref(null);
 const profilePanel = ref(null);
@@ -249,9 +234,14 @@ watch(
   (newVal) => {
     if (!newVal) {
       showProfileInfo.value = false;
+    } else {
+      loadNotifications();
     }
-  }
+  },
+  { immediate: true }
 );
+
+let notificationInterval;
 
 onMounted(() => {
   document.addEventListener("click", handleClickOutside);
@@ -259,11 +249,23 @@ onMounted(() => {
   // Загружаем данные пользователя если токен есть
   if (localStorage.getItem("access_token")) {
     authStore.getCurrentUser().catch(console.error);
+    loadNotifications();
   }
+
+  // Проверяем новые сообщения каждые 30 секунд
+  notificationInterval = setInterval(() => {
+    if (authStore.isAuthenticated) {
+      loadNotifications();
+    }
+  }, 30000);
 });
+
 
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
+  if (notificationInterval) {
+    clearInterval(notificationInterval);
+  }
 });
 
 const handleClickOutside = (event) => {
@@ -281,6 +283,9 @@ const toggleProfileInfo = () => {
   if (isAuthenticated.value) {
     showProfileInfo.value = !showProfileInfo.value;
   }
+};
+const handleNotificationClick = () => {
+  router.push("/messenger");
 };
 
 const handleLogout = async () => {
@@ -753,11 +758,9 @@ const handleLogout = async () => {
 
 .stat-item {
   padding: 0.75rem;
-  background: linear-gradient(
-    135deg,
-    rgba(240, 195, 209, 0.2) 0%,
-    rgba(200, 218, 232, 0.2) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(240, 195, 209, 0.2) 0%,
+      rgba(200, 218, 232, 0.2) 100%);
   border-radius: 8px;
   border: 1px solid rgba(212, 185, 187, 0.3);
 }

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import Body, FastAPI, Depends, HTTPException, status, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,7 +9,8 @@ from typing import List, Optional, Dict
 from datetime import datetime
 import uvicorn
 import os
-
+from models import MessageThread, Message
+from schemas import MessageCreate, ThreadResponse, MessageResponse, UnreadCountResponse, TeacherListResponse
 from pydantic import BaseModel
 
 from database import engine, get_db, Base
@@ -761,6 +762,309 @@ def get_status_message(status: UserStatus) -> str:
     }
     return messages.get(status, "Неизвестный статус.")
 
+# main.py - добавить в правильное место (после других эндпоинтов)
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# ---------- MESSENGER ----------
+
+@app.get("/api/messenger/threads", response_model=List[ThreadResponse])
+def get_message_threads(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_account_confirmation()),
+):
+    """Получить все диалоги текущего пользователя"""
+    if current_user.role == UserRole.STUDENT:
+        threads = (
+            db.query(MessageThread)
+            .filter(MessageThread.student_id == current_user.id)
+            .filter(MessageThread.is_archived == False)
+            .order_by(MessageThread.last_message_at.desc())
+            .all()
+        )
+    else:
+        threads = (
+            db.query(MessageThread)
+            .filter(MessageThread.teacher_id == current_user.id)
+            .filter(MessageThread.is_archived == False)
+            .order_by(MessageThread.last_message_at.desc())
+            .all()
+        )
+    
+    result = []
+    for thread in threads:
+        thread_dict = thread.to_dict()
+        # Получаем последнее сообщение
+        last_message = (
+            db.query(Message)
+            .filter(Message.thread_id == thread.id)
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+        if last_message:
+            thread_dict["last_message"] = last_message.to_dict()
+        result.append(thread_dict)
+    
+    return result
+
+
+@app.get("/api/messenger/teachers", response_model=TeacherListResponse)
+def get_available_teachers(
+    page: int = 1,
+    limit: int = 50,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_account_confirmation()),
+):
+    """Получить список всех преподавателей"""
+    query = db.query(User).filter(User.role.in_([UserRole.TEACHER, UserRole.DEPARTMENT_HEAD, UserRole.ADMIN]))
+    
+    if search:
+        query = query.filter(User.full_name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    teachers = query.offset((page - 1) * limit).limit(limit).all()
+    
+    return TeacherListResponse(
+        teachers=[teacher.to_dict() for teacher in teachers],
+        total=total
+    )
+
+
+@app.get("/api/messenger/threads/{thread_id}/messages", response_model=List[MessageResponse])
+def get_thread_messages(
+    thread_id: int,
+    page: int = 1,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Получить сообщения диалога"""
+    thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Диалог не найден")
+    
+    # Проверка доступа
+    if current_user.role == UserRole.STUDENT and thread.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    elif current_user.role != UserRole.STUDENT and thread.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    
+    # Помечаем сообщения как прочитанные
+    unread_messages = (
+        db.query(Message)
+        .filter(Message.thread_id == thread_id)
+        .filter(Message.is_read == False)
+        .filter(Message.sender_id != current_user.id)
+        .all()
+    )
+    
+    for msg in unread_messages:
+        msg.is_read = True
+    
+    # Обновляем счетчик непрочитанных
+    thread.unread_count = 0
+    db.commit()
+    
+    # Получаем сообщения
+    messages = (
+        db.query(Message)
+        .filter(Message.thread_id == thread_id)
+        .order_by(Message.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+    
+    return [msg.to_dict() for msg in reversed(messages)]
+
+
+@app.post("/api/messenger/messages", response_model=MessageResponse)
+def send_message(
+    message_data: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Отправить сообщение преподавателю"""
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Только студенты могут начинать диалоги"
+        )
+    
+    # Проверяем, существует ли преподаватель
+    teacher = db.query(User).filter(
+        User.id == message_data.teacher_id,
+        User.role.in_([UserRole.TEACHER, UserRole.DEPARTMENT_HEAD, UserRole.ADMIN])
+    ).first()
+    
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Преподаватель не найден")
+    
+    # Находим или создаем диалог
+    thread = db.query(MessageThread).filter(
+        MessageThread.student_id == current_user.id,
+        MessageThread.teacher_id == teacher.id
+    ).first()
+    
+    if not thread:
+        thread = MessageThread(
+            student_id=current_user.id,
+            teacher_id=teacher.id
+        )
+        db.add(thread)
+        db.commit()
+        db.refresh(thread)
+    
+    # Создаем сообщение
+    message = Message(
+        thread_id=thread.id,
+        sender_id=current_user.id,
+        content=message_data.content.strip()
+    )
+    db.add(message)
+    
+    # Обновляем время последнего сообщения и счетчик непрочитанных
+    thread.last_message_at = datetime.utcnow()
+    thread.unread_count += 1
+    
+    db.commit()
+    db.refresh(message)
+    
+    return message.to_dict()
+
+
+@app.post("/api/messenger/messages/{thread_id}/reply", response_model=MessageResponse)
+def reply_to_thread(
+    thread_id: int,
+    request: dict = Body(...),  # Принимаем JSON объект
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Ответить в существующем диалоге"""
+    
+    # Извлекаем content из запроса
+    content = request.get("content") if isinstance(request, dict) else None
+    
+    if not content:
+        # Попробуем получить как строку
+        content = request if isinstance(request, str) else None
+    
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Сообщение не может быть пустым"
+        )
+    
+    # Проверяем существование диалога
+    thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Диалог не найден")
+    
+    # Проверка доступа
+    if current_user.role == UserRole.STUDENT:
+        if thread.student_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    else:
+        if thread.teacher_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    
+    # Создаем сообщение
+    message = Message(
+        thread_id=thread.id,
+        sender_id=current_user.id,
+        content=content.strip()
+    )
+    db.add(message)
+    
+    # Обновляем время последнего сообщения и счетчик непрочитанных
+    thread.last_message_at = datetime.utcnow()
+    thread.unread_count += 1
+    
+    db.commit()
+    db.refresh(message)
+    
+    return message.to_dict()
+
+
+@app.get("/api/messenger/unread-count", response_model=UnreadCountResponse)
+def get_unread_message_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Получить количество непрочитанных сообщений"""
+    if current_user.role == UserRole.STUDENT:
+        threads = db.query(MessageThread).filter(
+            MessageThread.student_id == current_user.id,
+            MessageThread.is_archived == False
+        ).all()
+    else:
+        threads = db.query(MessageThread).filter(
+            MessageThread.teacher_id == current_user.id,
+            MessageThread.is_archived == False
+        ).all()
+    
+    total_unread = sum(thread.unread_count for thread in threads)
+    thread_unread_counts = {thread.id: thread.unread_count for thread in threads}
+    
+    return UnreadCountResponse(
+        total_unread=total_unread,
+        thread_unread_counts=thread_unread_counts
+    )
+
+
+@app.post("/api/messenger/threads/{thread_id}/read")
+def mark_thread_as_read(
+    thread_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Пометить все сообщения в диалоге как прочитанные"""
+    thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Диалог не найден")
+    
+    # Проверка доступа
+    if current_user.role == UserRole.STUDENT and thread.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    elif current_user.role != UserRole.STUDENT and thread.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    
+    # Помечаем все сообщения как прочитанные
+    unread_messages = (
+        db.query(Message)
+        .filter(Message.thread_id == thread_id)
+        .filter(Message.is_read == False)
+        .filter(Message.sender_id != current_user.id)
+        .all()
+    )
+    
+    for msg in unread_messages:
+        msg.is_read = True
+    
+    # Сбрасываем счетчик непрочитанных
+    thread.unread_count = 0
+    db.commit()
+    
+    return {"success": True, "message": "Все сообщения отмечены как прочитанные"}
+
+
+@app.post("/api/messenger/threads/{thread_id}/archive")
+def archive_thread(
+    thread_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Архивировать диалог"""
+    thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Диалог не найден")
+    
+    # Проверка доступа
+    if current_user.role == UserRole.STUDENT and thread.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    elif current_user.role != UserRole.STUDENT and thread.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
+    
+    thread.is_archived = True
+    db.commit()
+    
+    return {"success": True, "message": "Диалог архивирован"}

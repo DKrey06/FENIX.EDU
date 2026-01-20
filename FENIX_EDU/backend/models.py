@@ -144,3 +144,72 @@ class DiscussionReply(Base):
 
     author = relationship("User")
     comment = relationship("DiscussionComment", back_populates="replies")
+
+# Добавить в models.py в конец файла:
+
+class MessageThread(Base):
+    __tablename__ = "message_threads"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    last_message_at = Column(DateTime, default=datetime.utcnow)
+    unread_count = Column(Integer, default=0)
+    is_archived = Column(Boolean, default=False)
+    
+    # Отношения
+    student = relationship("User", foreign_keys=[student_id])
+    teacher = relationship("User", foreign_keys=[teacher_id])
+    messages = relationship(
+        "Message",
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="Message.created_at"
+    )
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "teacher_id": self.teacher_id,
+            "student_name": self.student.full_name if self.student else "",
+            "teacher_name": self.teacher.full_name if self.teacher else "",
+            "teacher_avatar": get_avatar_initials(self.teacher.full_name if self.teacher else ""),
+            "last_message_at": self.last_message_at.isoformat() if self.last_message_at else None,
+            "unread_count": self.unread_count,
+            "is_archived": self.is_archived
+        }
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    thread_id = Column(Integer, ForeignKey("message_threads.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    thread = relationship("MessageThread", back_populates="messages")
+    sender = relationship("User")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "thread_id": self.thread_id,
+            "sender_id": self.sender_id,
+            "sender_name": self.sender.full_name if self.sender else "",
+            "sender_role": self.sender.role if self.sender else UserRole.STUDENT,
+            "content": self.content,
+            "is_read": self.is_read,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+def get_avatar_initials(name: str) -> str:
+    if not name:
+        return "👤"
+    parts = name.split()
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[1][0]).upper()
+    return name[:2].upper() if len(name) >= 2 else name[0].upper() + "?"
