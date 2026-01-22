@@ -7,8 +7,6 @@
         </div>
 
         <div class="sidebar-content">
-          <!-- Информация о пользователе -->
-          <!-- Меню -->
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
@@ -48,9 +46,7 @@
                 <span class="nav-text">Курсы</span>
               </router-link>
               <div
-                v-if="
-                  user?.role === 'admin' || user?.role === 'department_head'
-                "
+                v-if="user?.role === 'admin' || user?.role === 'department_head'"
                 class="admin-link"
               >
                 <router-link to="/admin" class="nav-item">
@@ -60,7 +56,6 @@
             </nav>
           </div>
 
-          <!-- Кнопка выхода -->
           <div class="sidebar-section">
             <button
               v-if="isAuthenticated"
@@ -70,7 +65,6 @@
               <span class="logout-text">Выход</span>
             </button>
 
-            <!-- Кнопки авторизации для гостей -->
             <div v-else class="auth-buttons">
               <router-link to="/login" class="auth-btn">
                 <span class="auth-text">Войти</span>
@@ -182,6 +176,11 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- если курсов нет -->
+                  <div v-if="filteredCourses.length === 0" class="empty-state">
+                    Курсы не найдены
+                  </div>
                 </div>
               </div>
             </div>
@@ -209,15 +208,26 @@
 
             <div class="info-card discussions-card">
               <h3 class="info-title">Обсуждения</h3>
+
               <div class="discussions-list">
-                <div
-                  v-for="discussion in discussions"
-                  :key="discussion.id"
-                  class="discussion-item"
+                <router-link
+                  v-for="course in discussionCourses"
+                  :key="course.id"
+                  class="discussion-item discussion-link"
+                  :to="{ name: 'CourseView', params: { id: course.id } }"
                 >
-                  <div class="discussion-name">{{ discussion.name }}</div>
+                  <div class="discussion-name">{{ course.title }}</div>
+                </router-link>
+
+                <div v-if="discussionCourses.length === 0" class="discussion-item">
+                  <div class="discussion-name">Нет доступных обсуждений</div>
                 </div>
               </div>
+            </div>
+
+            <div v-if="loadError" class="info-card">
+              <h3 class="info-title">Ошибка</h3>
+              <div class="discussion-name">{{ loadError }}</div>
             </div>
           </div>
         </div>
@@ -231,20 +241,21 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
+const API_URL = "http://127.0.0.1:8000/api";
+
 const router = useRouter();
 const authStore = useAuthStore();
 
 // Компьютед свойства
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
-const userInitials = computed(() => {
-  if (!user.value?.full_name) return "";
-  return user.value.full_name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
-});
+
+const activeStatus = ref("inProgress");
+const showFilter = ref(false);
+const loadError = ref("");
+
+// Курсы (теперь грузим с API)
+const courses = ref([]);
 
 // Фильтры
 const filters = ref([
@@ -272,126 +283,22 @@ const getFilterIcon = (filterName) => {
   }
 };
 
-// Состояния
-const activeStatus = ref("inProgress");
-const showFilter = ref(false);
-
-// Курсы с прогрессом и датами
-const courses = ref([
-  {
-    id: 1,
-    title: "Математический анализ",
-    description: "Основы математического анализа и дифференциальных уравнений",
-    status: "inProgress",
-    progress: 65,
-    date: "2024-01-15",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 2,
-    title: "Основы программирования",
-    description: "Введение в программирование на Python",
-    status: "inProgress",
-    progress: 85,
-    date: "2024-02-10",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 3,
-    title: "Веб-дизайн",
-    description: "Создание современных веб-интерфейсов",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-05",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 4,
-    title: "Английский язык B2",
-    description: "Деловой английский для IT-специалистов",
-    status: "inProgress",
-    progress: 45,
-    date: "2024-03-01",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 5,
-    title: "История искусств",
-    description: "Искусство от античности до современности",
-    status: "completed",
-    progress: 100,
-    date: "2023-11-20",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 6,
-    title: "Базы данных",
-    description: "Проектирование и оптимизация баз данных",
-    status: "inProgress",
-    progress: 30,
-    date: "2024-02-25",
-    isPopular: true,
-    isNew: true,
-  },
-  {
-    id: 7,
-    title: "Алгоритмы и структуры данных",
-    description: "Основные алгоритмы и структуры данных",
-    status: "inProgress",
-    progress: 70,
-    date: "2024-01-30",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 8,
-    title: "Мобильная разработка",
-    description: "Создание мобильных приложений",
-    status: "inProgress",
-    progress: 55,
-    date: "2024-02-15",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 9,
-    title: "Машинное обучение",
-    description: "Введение в искусственный интеллект",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-20",
-    isPopular: true,
-    isNew: false,
-  },
-]);
-
-// Преподаватели
+// Преподаватели (пока мок)
 const teachers = ref([
   { id: 1, name: "Преподаватель 1", avatar: "👨‍🏫", status: "online" },
   { id: 2, name: "Преподаватель 2", avatar: "👩‍🏫", status: "online" },
   { id: 3, name: "Преподаватель 3", avatar: "👨‍🏫", status: "offline" },
 ]);
 
-// Обсуждения
-const discussions = ref([
-  { id: 1, name: "Математический анализ" },
-  { id: 2, name: "Основы программирования" },
-  { id: 3, name: "Веб-дизайн" },
-  { id: 4, name: "Английский язык B2" },
-]);
+// Ссылки в "Обсуждения" — просто список курсов
+const discussionCourses = computed(() => courses.value);
 
 // Фильтрованные курсы
 const filteredCourses = computed(() => {
-  let result = courses.value.filter(
-    (course) => course.status === activeStatus.value
-  );
+  // Если бэкенд не хранит статус/прогресс — мы показываем все курсы в "В процессе"
+  // Если у тебя появятся поля status/progress — они автоматически подхватятся.
+  let result = courses.value.filter((course) => course.status === activeStatus.value);
 
-  // Применяем фильтры, если выбраны
   const selectedFilters = filters.value
     .filter((f) => f.selected)
     .map((f) => f.name);
@@ -400,24 +307,20 @@ const filteredCourses = computed(() => {
     result = result.filter((course) => {
       return selectedFilters.some((filter) => {
         switch (filter) {
-          case "Недавние":
-            const courseDate = new Date(course.date);
+          case "Недавние": {
+            const courseDate = new Date(course.date || Date.now());
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             return courseDate >= thirtyDaysAgo;
-
+          }
           case "С высоким прогрессом":
-            return course.progress >= 70;
-
+            return (course.progress ?? 0) >= 70;
           case "С низким прогрессом":
-            return course.progress <= 30;
-
+            return (course.progress ?? 0) <= 30;
           case "Популярные":
-            return course.isPopular;
-
+            return !!course.isPopular;
           case "Новые":
-            return course.isNew;
-
+            return !!course.isNew;
           default:
             return true;
         }
@@ -446,25 +349,7 @@ const closeFilterOnClickOutside = (event) => {
   }
 };
 
-onMounted(() => {
-  document.addEventListener("click", closeFilterOnClickOutside);
-
-  // Проверяем авторизацию при загрузке
-  if (localStorage.getItem("access_token")) {
-    try {
-      authStore.getCurrentUser();
-    } catch (error) {
-      console.error("Ошибка загрузки пользователя:", error);
-    }
-  }
-});
-
-onUnmounted(() => {
-  document.removeEventListener("click", closeFilterOnClickOutside);
-});
-
 const openCourse = (courseId) => {
-  console.log("Открываем курс:", courseId);
   router.push({ name: "CourseView", params: { id: courseId } });
 };
 
@@ -476,9 +361,66 @@ const handleLogout = async () => {
     console.error("Ошибка выхода:", error);
   }
 };
+
+async function loadCourses() {
+  loadError.value = "";
+  try {
+    const token =
+      localStorage.getItem("access_token") || localStorage.getItem("token") || "";
+
+    const res = await fetch(`${API_URL}/courses`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+
+    const data = await res.json();
+
+    // Бэкенд отдаёт {id, name, description, ...}
+    // Приводим к формату, который использует твой UI
+    courses.value = (Array.isArray(data) ? data : []).map((c) => ({
+      id: c.id,
+      title: c.name ?? c.title ?? "Без названия",
+      description: c.description ?? "",
+      // пока нет прогресса/статуса в БД — ставим дефолты
+      status: "inProgress",
+      progress: 0,
+      date: c.created_at ?? new Date().toISOString(),
+      isPopular: false,
+      isNew: false,
+    }));
+
+    // Если пользователь кликает "Завершенные", там будет пусто — это нормально
+    // (пока не появится реальный статус в БД)
+  } catch (e) {
+    console.error("Ошибка загрузки курсов:", e);
+    loadError.value = "Не удалось загрузить курсы. Проверь бэкенд и токен.";
+    courses.value = [];
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("click", closeFilterOnClickOutside);
+
+  // подгружаем пользователя (если есть токен)
+  if (localStorage.getItem("access_token")) {
+    authStore.getCurrentUser().catch(console.error);
+  }
+
+  // грузим реальные курсы из базы
+  loadCourses();
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", closeFilterOnClickOutside);
+});
 </script>
 
 <style scoped>
+/* (CSS оставлен как был, добавлен только empty-state) */
 .homepage {
   min-height: calc(100vh - 200px);
   padding: 2rem;
@@ -580,12 +522,6 @@ const handleLogout = async () => {
   box-shadow: 0 4px 12px rgba(47, 65, 86, 0.15);
 }
 
-.nav-icon {
-  font-size: 1.25rem;
-  width: 24px;
-  text-align: center;
-}
-
 .nav-text {
   font-size: 0.95rem;
   flex: 1;
@@ -614,10 +550,6 @@ const handleLogout = async () => {
   border-color: #2f4156;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(47, 65, 86, 0.2);
-}
-
-.logout-icon {
-  font-size: 1.25rem;
 }
 
 .logout-text {
@@ -663,57 +595,6 @@ const handleLogout = async () => {
 .auth-btn-primary:hover {
   background: #1a2a3a;
   border-color: #1a2a3a;
-}
-
-.auth-icon {
-  font-size: 1.25rem;
-  width: 24px;
-  text-align: center;
-}
-
-.auth-text {
-  font-size: 0.95rem;
-  flex: 1;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #ffffff;
-  border-radius: 12px;
-  border: 2px solid rgba(47, 65, 86, 0.1);
-  margin-bottom: 1rem;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  background: #d3a5b1;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  color: #2f4156;
-  font-size: 0.9rem;
-}
-
-.user-details {
-  flex: 1;
-}
-
-.user-name {
-  font-weight: 600;
-  color: #2f4156;
-  margin-bottom: 0.25rem;
-}
-
-.user-role {
-  font-size: 0.75rem;
-  color: #718096;
-  text-transform: capitalize;
 }
 
 .main-content {
@@ -833,24 +714,6 @@ const handleLogout = async () => {
   overflow-y: auto;
 }
 
-.filter-dropdown::-webkit-scrollbar {
-  width: 6px;
-}
-
-.filter-dropdown::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.filter-dropdown::-webkit-scrollbar-thumb {
-  background: #c8dae8;
-  border-radius: 3px;
-}
-
-.filter-dropdown::-webkit-scrollbar-thumb:hover {
-  background: #a0b9d0;
-}
-
 .filter-options {
   display: flex;
   flex-direction: column;
@@ -898,11 +761,6 @@ const handleLogout = async () => {
   background: #f6fbff;
   border-radius: 16px;
   padding: 1.5rem;
-  width: 100%;
-}
-
-.courses-wrapper {
-  background: #f6fbff;
   width: 100%;
 }
 
@@ -1027,6 +885,16 @@ const handleLogout = async () => {
   min-width: 35px;
 }
 
+.empty-state {
+  grid-column: 1 / -1;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  color: #2f4156;
+  font-weight: 600;
+  text-align: center;
+}
+
 .right-sidebar {
   display: flex;
   flex-direction: column;
@@ -1121,10 +989,6 @@ const handleLogout = async () => {
 
 .discussion-item:hover {
   background: rgba(255, 255, 255, 0.8);
-}
-
-.discussion-icon {
-  font-size: 1.25rem;
 }
 
 .discussion-name {

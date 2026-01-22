@@ -38,7 +38,6 @@
     </div>
 
     <div class="course-content">
-      <!-- левая колонка: разделы -->
       <div class="course-sections">
         <div class="sections-header">
           <h2 class="sections-title">Содержание курса</h2>
@@ -83,7 +82,6 @@
                   </span>
                 </div>
 
-                <!-- файлы задания -->
                 <div
                   v-if="subsection.files && subsection.files.length"
                   class="subsection-files"
@@ -115,7 +113,6 @@
                     </div>
                   </div>
                 </div>
-                <!-- /файлы задания -->
               </div>
             </div>
           </div>
@@ -126,10 +123,14 @@
         </div>
       </div>
 
-      <!-- правая колонка: статистика -->
       <div class="course-stats-panel">
         <div class="course-stats">
           <div class="stats-title">Статистика курса</div>
+
+          <button type="button" @click="goToDiscussion">
+            Перейти к обсуждению
+          </button>
+
           <div class="stats-grid">
             <div class="stat-item">
               <div class="stat-content">
@@ -160,7 +161,6 @@
       </div>
     </div>
 
-    <!-- полноэкранный просмотр изображения -->
     <div v-if="previewImageUrl" class="image-modal" @click.self="closeImage">
       <div class="image-modal-content">
         <img :src="previewImageUrl" :alt="previewImageName" />
@@ -202,6 +202,13 @@ const totalSubsections = computed(() => {
 });
 
 const canEdit = computed(() => authStore.user?.role === "teacher");
+
+const goToDiscussion = () => {
+  router.push({
+    name: "Discussions",
+    query: { course_id: String(route.params.id) },
+  });
+};
 
 const toggleSection = (sectionId) => {
   activeSection.value = activeSection.value === sectionId ? null : sectionId;

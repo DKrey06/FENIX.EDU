@@ -183,7 +183,6 @@
                       </div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -223,9 +222,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 
-const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8000").replace(/\/$/, "");
+const route = useRoute();
+
+const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8000").replace(
+  /\/$/,
+  ""
+);
 
 const courses = ref([]);
 const sections = ref([]);
@@ -364,7 +369,11 @@ async function apiPost(path, body) {
   return res.json();
 }
 
-// показываем все курсы
+const requestedCourseId = computed(() => {
+  const v = route.query.course_id;
+  return v != null ? String(v) : null;
+});
+
 const visibleCourses = computed(() => courses.value || []);
 
 const activeSubsection = computed(() => {
@@ -392,7 +401,9 @@ const filteredSections = computed(() => {
 
   return normalized
     .map((sec) => {
-      const subs = sec.subsections.filter((s) => (s.title || "").toLowerCase().includes(q));
+      const subs = sec.subsections.filter((s) =>
+        (s.title || "").toLowerCase().includes(q)
+      );
       return { ...sec, subsections: subs };
     })
     .filter((sec) => sec.subsections.length > 0);
@@ -407,6 +418,16 @@ async function loadCourses() {
     courses.value = Array.isArray(list) ? list : [];
 
     if (!activeCourseId.value && courses.value.length > 0) {
+      const wanted = requestedCourseId.value;
+
+      if (wanted) {
+        const found = courses.value.find((c) => String(c.id) === wanted);
+        if (found) {
+          await selectCourse(found.id);
+          return;
+        }
+      }
+
       await selectCourse(courses.value[0].id);
     }
   } catch (e) {
@@ -543,6 +564,22 @@ async function sendReply(commentId) {
     console.error(e);
   }
 }
+
+watch(
+  () => route.query.course_id,
+  async (val) => {
+    if (!val) return;
+    const wanted = String(val);
+
+    // если курсы ещё не загружены — подождём загрузку через loadCourses()
+    if (!courses.value || courses.value.length === 0) return;
+
+    const found = courses.value.find((c) => String(c.id) === wanted);
+    if (found && activeCourseId.value !== found.id) {
+      await selectCourse(found.id);
+    }
+  }
+);
 
 onMounted(async () => {
   await loadCourses();

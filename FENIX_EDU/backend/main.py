@@ -103,13 +103,9 @@ class SectionSchema(BaseModel):
 class CourseStructureSchema(BaseModel):
     sections: List[SectionSchema]
 
-
-# хранилище файлов (пока в памяти — только связь subsection_id -> файлы)
 subsection_files: Dict[int, List[SubsectionFileSchema]] = {}
 
 # ---------- служебные события ----------
-
-
 @app.on_event("startup")
 def create_first_admin():
     db = next(get_db())
@@ -129,96 +125,266 @@ def create_first_admin():
             db.commit()
             print("✅ Создан первый администратор: admin@fenixedu.ru / admin123")
 
-        # --- helper: дефолтная структура ---
-        def build_default_structure(course_id: int) -> dict:
-            # делаем subsection_id уникальным на курс (чтобы не пересекались между курсами)
+        # ---------- helpers ----------
+        def build_course_structure(course_id: int, course_key: str) -> dict:
+            """
+            course_key: 'math' | 'prog' | 'web' | 'eng' | 'db' | 'algo'
+            subsection_id делаем уникальным на курс через base = course_id * 1000
+            """
             base = course_id * 1000
+
+            if course_key == "math":
+                return {
+                    "sections": [
+                        {
+                            "id": base + 1,
+                            "number": 1,
+                            "title": "Введение в матанализ",
+                            "subsections": [
+                                {"id": base + 101, "icon": "📌", "title": "О курсе и требования", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 102, "icon": "🧭", "title": "Как сдаём ДЗ и тесты", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 2,
+                            "number": 2,
+                            "title": "Глава 1: Пределы и непрерывность",
+                            "subsections": [
+                                {"id": base + 201, "icon": "📚", "title": "Материал: пределы, свойства, непрерывность", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 202, "icon": "📝", "title": "Тест: пределы и непрерывность", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 203, "icon": "🧩", "title": "Задание: вычислить пределы (подборка задач)", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 3,
+                            "number": 3,
+                            "title": "Глава 2: Производная и применение",
+                            "subsections": [
+                                {"id": base + 301, "icon": "📚", "title": "Материал: производная, правила, касательная", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 302, "icon": "📝", "title": "Тест: производная и графики", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 303, "icon": "🧩", "title": "Задание: экстремумы и исследование функции", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                    ]
+                }
+
+            if course_key == "prog":
+                return {
+                    "sections": [
+                        {
+                            "id": base + 1,
+                            "number": 1,
+                            "title": "Введение в программирование (Python)",
+                            "subsections": [
+                                {"id": base + 101, "icon": "📌", "title": "О курсе и установка окружения", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 102, "icon": "🧰", "title": "Инструменты: Python, IDE, запуск программ", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 2,
+                            "number": 2,
+                            "title": "Глава 1: Переменные, типы, ветвления",
+                            "subsections": [
+                                {"id": base + 201, "icon": "📚", "title": "Материал: типы данных, if/else, ввод/вывод", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 202, "icon": "📝", "title": "Тест: основы синтаксиса и ветвления", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 203, "icon": "🧩", "title": "Задание: мини-задачи на if/else", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 3,
+                            "number": 3,
+                            "title": "Глава 2: Циклы и функции",
+                            "subsections": [
+                                {"id": base + 301, "icon": "📚", "title": "Материал: for/while, функции, область видимости", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 302, "icon": "📝", "title": "Тест: циклы и функции", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 303, "icon": "🧩", "title": "Задание: генератор простых задач (практика)", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                    ]
+                }
+
+            if course_key == "web":
+                return {
+                    "sections": [
+                        {
+                            "id": base + 1,
+                            "number": 1,
+                            "title": "Введение в веб-дизайн",
+                            "subsections": [
+                                {"id": base + 101, "icon": "📌", "title": "О курсе и принципы UI/UX", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 102, "icon": "🧭", "title": "Структура проекта и критерии оценки", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 2,
+                            "number": 2,
+                            "title": "Глава 1: HTML и базовая разметка",
+                            "subsections": [
+                                {"id": base + 201, "icon": "📚", "title": "Материал: семантика, формы, структура страницы", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 202, "icon": "📝", "title": "Тест: HTML-семантика", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 203, "icon": "🧩", "title": "Задание: сверстать страницу профиля", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 3,
+                            "number": 3,
+                            "title": "Глава 2: CSS и композиция",
+                            "subsections": [
+                                {"id": base + 301, "icon": "📚", "title": "Материал: flex/grid, адаптив, типографика", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 302, "icon": "📝", "title": "Тест: Flexbox/Grid и адаптивность", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 303, "icon": "🧩", "title": "Задание: адаптивный лендинг", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                    ]
+                }
+
+            if course_key == "db":
+                return {
+                    "sections": [
+                        {
+                            "id": base + 1,
+                            "number": 1,
+                            "title": "Введение в базы данных",
+                            "subsections": [
+                                {"id": base + 101, "icon": "📌", "title": "О курсе и СУБД", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 102, "icon": "🧰", "title": "Установка PostgreSQL / инструменты", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 2,
+                            "number": 2,
+                            "title": "Глава 1: SQL основы",
+                            "subsections": [
+                                {"id": base + 201, "icon": "📚", "title": "Материал: SELECT, WHERE, JOIN", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 202, "icon": "📝", "title": "Тест: базовый SQL", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 203, "icon": "🧩", "title": "Задание: запросы к учебной БД", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 3,
+                            "number": 3,
+                            "title": "Глава 2: Нормализация и проектирование",
+                            "subsections": [
+                                {"id": base + 301, "icon": "📚", "title": "Материал: 1НФ–3НФ, связи, ключи", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 302, "icon": "📝", "title": "Тест: нормальные формы", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 303, "icon": "🧩", "title": "Задание: спроектировать схему (ER)", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                    ]
+                }
+
+            if course_key == "algo":
+                return {
+                    "sections": [
+                        {
+                            "id": base + 1,
+                            "number": 1,
+                            "title": "Введение в алгоритмы",
+                            "subsections": [
+                                {"id": base + 101, "icon": "📌", "title": "О курсе и сложность алгоритмов", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 102, "icon": "🧭", "title": "Big-O нотация (база)", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 2,
+                            "number": 2,
+                            "title": "Глава 1: Массивы, списки, стек, очередь",
+                            "subsections": [
+                                {"id": base + 201, "icon": "📚", "title": "Материал: структуры данных (обзор)", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 202, "icon": "📝", "title": "Тест: базовые структуры данных", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 203, "icon": "🧩", "title": "Задание: реализовать стек/очередь", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                        {
+                            "id": base + 3,
+                            "number": 3,
+                            "title": "Глава 2: Сортировки и поиск",
+                            "subsections": [
+                                {"id": base + 301, "icon": "📚", "title": "Материал: сортировки O(n^2) и O(n log n)", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 302, "icon": "📝", "title": "Тест: сортировки", "status": "open", "statusIcon": "✅", "files": []},
+                                {"id": base + 303, "icon": "🧩", "title": "Задание: бинарный поиск + сортировка", "status": "open", "statusIcon": "✅", "files": []},
+                            ],
+                        },
+                    ]
+                }
+
+            # eng (default)
             return {
                 "sections": [
                     {
                         "id": base + 1,
                         "number": 1,
-                        "title": "Введение",
+                        "title": "Введение (English for IT)",
                         "subsections": [
-                            {
-                                "id": base + 101,
-                                "icon": "📌",
-                                "title": "О курсе",
-                                "status": "open",
-                                "statusIcon": "✅",
-                                "files": [],
-                            },
-                            {
-                                "id": base + 102,
-                                "icon": "🧭",
-                                "title": "Навигация и правила",
-                                "status": "open",
-                                "statusIcon": "✅",
-                                "files": [],
-                            },
+                            {"id": base + 101, "icon": "📌", "title": "О курсе и цели обучения", "status": "open", "statusIcon": "✅", "files": []},
+                            {"id": base + 102, "icon": "🗂️", "title": "Словарь курса и полезные ресурсы", "status": "open", "statusIcon": "✅", "files": []},
                         ],
                     },
                     {
                         "id": base + 2,
                         "number": 2,
-                        "title": "Первый модуль",
+                        "title": "Глава 1: Деловая переписка",
                         "subsections": [
-                            {
-                                "id": base + 201,
-                                "icon": "📚",
-                                "title": "Материалы",
-                                "status": "open",
-                                "statusIcon": "✅",
-                                "files": [],
-                            },
-                            {
-                                "id": base + 202,
-                                "icon": "📝",
-                                "title": "Задания",
-                                "status": "open",
-                                "statusIcon": "✅",
-                                "files": [],
-                            },
+                            {"id": base + 201, "icon": "📚", "title": "Материал: структура письма, tone, etiquette", "status": "open", "statusIcon": "✅", "files": []},
+                            {"id": base + 202, "icon": "📝", "title": "Тест: business email basics", "status": "open", "statusIcon": "✅", "files": []},
+                            {"id": base + 203, "icon": "✉️", "title": "Задание: написать письмо заказчику (шаблон)", "status": "open", "statusIcon": "✅", "files": []},
+                        ],
+                    },
+                    {
+                        "id": base + 3,
+                        "number": 3,
+                        "title": "Глава 2: Собеседование и презентации",
+                        "subsections": [
+                            {"id": base + 301, "icon": "📚", "title": "Материал: self-intro, strengths, projects", "status": "open", "statusIcon": "✅", "files": []},
+                            {"id": base + 302, "icon": "📝", "title": "Тест: interview questions (B1–B2)", "status": "open", "statusIcon": "✅", "files": []},
+                            {"id": base + 303, "icon": "🎤", "title": "Задание: короткая презентация проекта на англ.", "status": "open", "statusIcon": "✅", "files": []},
                         ],
                     },
                 ]
             }
 
-        courses_count = db.query(Course).count()
-        if courses_count == 0:
-            course = Course(
-                name=DEFAULT_COURSE_NAME,
-                description=DEFAULT_COURSE_DESCRIPTION,
+        def ensure_course_with_structure(name: str, description: str, course_key: str):
+            # 1) курс
+            course = db.query(Course).filter(Course.name == name).first()
+            if not course:
+                course = Course(name=name, description=description)
+                db.add(course)
+                db.commit()
+                db.refresh(course)
+                print(f"✅ Создан курс: {name}")
+
+            # 2) структура
+            exists_structure = (
+                db.query(CourseStructureModel)
+                .filter(CourseStructureModel.course_id == course.id)
+                .first()
             )
-            db.add(course)
-            db.commit()
-            db.refresh(course)
-            print(f"Создан стартовый курс: {DEFAULT_COURSE_NAME}")
-
-            cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
-            db.add(cs)
-            db.commit()
-            print("Создана стартовая структура курса")
-
-        else:
-            course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
-            if course:
-                exists_structure = (
-                    db.query(CourseStructureModel)
-                    .filter(CourseStructureModel.course_id == course.id)
-                    .first()
+            if not exists_structure:
+                cs = CourseStructureModel(
+                    course_id=course.id,
+                    data=build_course_structure(course.id, course_key),
                 )
-                if not exists_structure:
-                    cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
-                    db.add(cs)
-                    db.commit()
-                    print(" Для существующего начального курса создана структура")
+                db.add(cs)
+                db.commit()
+                print(f"✅ Создана структура курса: {name}")
 
+        seed_courses = [
+            ("Математический анализ", "Основы математического анализа: пределы, производные и их применение.", "math"),
+            ("Основы программирования", "Введение в программирование на Python: базовый синтаксис, ветвления, циклы, функции.", "prog"),
+            ("Веб-дизайн", "Создание современных веб-интерфейсов: HTML, CSS, адаптивная верстка.", "web"),
+            ("Английский язык", "Деловой английский для IT: переписка, интервью и презентации.", "eng"),
+            ("Базы данных", "Проектирование и работа с БД: SQL, нормализация, проектирование схем.", "db"),
+            ("Алгоритмы и структуры данных", "Базовые структуры данных и алгоритмы: сложность, сортировки, поиск.", "algo"),
+        ]
+
+        for name, desc, key in seed_courses:
+            ensure_course_with_structure(name, desc, key)
+
+    except Exception as e:
+
+        print("❌ Ошибка на startup (seed/admin):", repr(e))
     finally:
         db.close()
-
-
-
 
 # ---------- auth ----------
 
@@ -1146,3 +1312,7 @@ def archive_thread(
     db.commit()
     
     return {"success": True, "message": "Диалог архивирован"}
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
