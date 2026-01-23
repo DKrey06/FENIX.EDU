@@ -75,9 +75,9 @@
       <main class="chat-area" v-if="activeThread">
         <div class="chat-header">
           <div class="chat-partner">
-            <div class="partner-avatar">{{ activeThread.teacher_avatar }}</div>
+            <div class="partner-avatar">{{ activeThread.partner_avatar }}</div>
             <div class="partner-info">
-              <div class="partner-name">{{ activeThread.teacher_name }}</div>
+              <div class="partner-name">{{ activeThread.partner_name }}</div>
               <div class="partner-status">
                 <span class="status-indicator" :class="getStatusClass(activeThread)"></span>
                 <span class="status-text">{{ getStatusText(activeThread) }}</span>
@@ -167,6 +167,14 @@ const messageInput = ref(null)
 onMounted(async () => {
   await loadThreads()
   await loadTeachers()
+
+  if (route.query.thread) {
+    const threadId = parseInt(route.query.thread);
+    const thread = messengerStore.threads.find(t => t.id === threadId);
+    if (thread) {
+      await selectThread(thread);
+    }
+  }
 })
 
 // Загрузка диалогов
@@ -220,11 +228,20 @@ const filteredTeachers = computed(() => {
 
 // Выбор диалога
 const selectThread = async (thread) => {
-  activeThread.value = thread
-  await messengerStore.fetchThreadMessages(thread.id)
-  await messengerStore.markAsRead(thread.id)
-  scrollToBottom()
-}
+  // Используем partner_name и partner_avatar для отображения в заголовке
+  activeThread.value = {
+    id: thread.id,
+    teacher_id: thread.teacher_id,
+    teacher_name: thread.partner_name || thread.teacher_name,
+    teacher_avatar: thread.partner_avatar || thread.teacher_avatar || getAvatarInitials(thread.partner_name || thread.teacher_name),
+    partner_name: thread.partner_name || thread.teacher_name,
+    partner_id: thread.partner_id || thread.teacher_id
+  };
+
+  await messengerStore.fetchThreadMessages(thread.id);
+  await messengerStore.markAsRead(thread.id);
+  scrollToBottom();
+};
 
 // Начать новый чат
 const startNewChat = async (teacher) => {
@@ -363,6 +380,7 @@ watch(() => messengerStore.messages, () => {
   scrollToBottom()
 }, { deep: true })
 </script>
+
 
 <style scoped>
 .messenger-container {
@@ -974,6 +992,7 @@ watch(() => messengerStore.messages, () => {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 
 @media (max-width: 1024px) {
   .messenger-grid {

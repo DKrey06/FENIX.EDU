@@ -118,6 +118,9 @@ class ThreadResponse(BaseModel):
     student_name: str
     teacher_name: str
     teacher_avatar: str
+    partner_name: str  # Имя собеседника (в зависимости от текущего пользователя)
+    partner_avatar: str  # Аватар собеседника
+    partner_id: int  # ID собеседника
     last_message_at: datetime
     unread_count: int
     is_archived: bool

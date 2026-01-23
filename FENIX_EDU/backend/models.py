@@ -146,7 +146,6 @@ class DiscussionReply(Base):
     comment = relationship("DiscussionComment", back_populates="replies")
 
 # Добавить в models.py в конец файла:
-
 class MessageThread(Base):
     __tablename__ = "message_threads"
     
@@ -167,19 +166,49 @@ class MessageThread(Base):
         order_by="Message.created_at"
     )
     
-    def to_dict(self):
-        return {
+    def to_dict(self, current_user_id=None):
+        """
+        Возвращает данные диалога.
+        current_user_id: ID текущего пользователя (чтобы определить собеседника)
+        """
+        # Определяем, кто является собеседником
+        partner = None
+        partner_name = ""
+        partner_avatar = ""
+        
+        if current_user_id:
+            if self.student_id == current_user_id:
+                # Текущий пользователь - студент, собеседник - преподаватель
+                partner = self.teacher
+            else:
+                # Текущий пользователь - преподаватель/админ, собеседник - студент
+                partner = self.student
+        
+        if partner:
+            partner_name = partner.full_name
+            partner_avatar = get_avatar_initials(partner.full_name)
+        
+        # Если current_user_id не передан, используем старую логику
+        if not partner_name and self.teacher:
+            partner_name = self.teacher.full_name
+            partner_avatar = get_avatar_initials(self.teacher.full_name)
+        
+        result = {
             "id": self.id,
             "student_id": self.student_id,
             "teacher_id": self.teacher_id,
             "student_name": self.student.full_name if self.student else "",
             "teacher_name": self.teacher.full_name if self.teacher else "",
-            "teacher_avatar": get_avatar_initials(self.teacher.full_name if self.teacher else ""),
+            "teacher_avatar": get_avatar_initials(self.teacher.full_name) if self.teacher else "",
+            "partner_name": partner_name,  # Имя собеседника
+            "partner_avatar": partner_avatar,  # Аватар собеседника
+            "partner_id": partner.id if partner else (self.teacher_id if self.student_id == current_user_id else self.student_id),
             "last_message_at": self.last_message_at.isoformat() if self.last_message_at else None,
             "unread_count": self.unread_count,
             "is_archived": self.is_archived
         }
-
+        
+        return result
 
 class Message(Base):
     __tablename__ = "messages"

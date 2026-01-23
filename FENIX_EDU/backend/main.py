@@ -103,9 +103,13 @@ class SectionSchema(BaseModel):
 class CourseStructureSchema(BaseModel):
     sections: List[SectionSchema]
 
+
+# хранилище файлов (пока в памяти — только связь subsection_id -> файлы)
 subsection_files: Dict[int, List[SubsectionFileSchema]] = {}
 
 # ---------- служебные события ----------
+
+
 @app.on_event("startup")
 def create_first_admin():
     db = next(get_db())
@@ -125,266 +129,96 @@ def create_first_admin():
             db.commit()
             print("✅ Создан первый администратор: admin@fenixedu.ru / admin123")
 
-        # ---------- helpers ----------
-        def build_course_structure(course_id: int, course_key: str) -> dict:
-            """
-            course_key: 'math' | 'prog' | 'web' | 'eng' | 'db' | 'algo'
-            subsection_id делаем уникальным на курс через base = course_id * 1000
-            """
+        # --- helper: дефолтная структура ---
+        def build_default_structure(course_id: int) -> dict:
+            # делаем subsection_id уникальным на курс (чтобы не пересекались между курсами)
             base = course_id * 1000
-
-            if course_key == "math":
-                return {
-                    "sections": [
-                        {
-                            "id": base + 1,
-                            "number": 1,
-                            "title": "Введение в матанализ",
-                            "subsections": [
-                                {"id": base + 101, "icon": "📌", "title": "О курсе и требования", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 102, "icon": "🧭", "title": "Как сдаём ДЗ и тесты", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 2,
-                            "number": 2,
-                            "title": "Глава 1: Пределы и непрерывность",
-                            "subsections": [
-                                {"id": base + 201, "icon": "📚", "title": "Материал: пределы, свойства, непрерывность", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 202, "icon": "📝", "title": "Тест: пределы и непрерывность", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 203, "icon": "🧩", "title": "Задание: вычислить пределы (подборка задач)", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 3,
-                            "number": 3,
-                            "title": "Глава 2: Производная и применение",
-                            "subsections": [
-                                {"id": base + 301, "icon": "📚", "title": "Материал: производная, правила, касательная", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 302, "icon": "📝", "title": "Тест: производная и графики", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 303, "icon": "🧩", "title": "Задание: экстремумы и исследование функции", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                    ]
-                }
-
-            if course_key == "prog":
-                return {
-                    "sections": [
-                        {
-                            "id": base + 1,
-                            "number": 1,
-                            "title": "Введение в программирование (Python)",
-                            "subsections": [
-                                {"id": base + 101, "icon": "📌", "title": "О курсе и установка окружения", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 102, "icon": "🧰", "title": "Инструменты: Python, IDE, запуск программ", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 2,
-                            "number": 2,
-                            "title": "Глава 1: Переменные, типы, ветвления",
-                            "subsections": [
-                                {"id": base + 201, "icon": "📚", "title": "Материал: типы данных, if/else, ввод/вывод", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 202, "icon": "📝", "title": "Тест: основы синтаксиса и ветвления", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 203, "icon": "🧩", "title": "Задание: мини-задачи на if/else", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 3,
-                            "number": 3,
-                            "title": "Глава 2: Циклы и функции",
-                            "subsections": [
-                                {"id": base + 301, "icon": "📚", "title": "Материал: for/while, функции, область видимости", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 302, "icon": "📝", "title": "Тест: циклы и функции", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 303, "icon": "🧩", "title": "Задание: генератор простых задач (практика)", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                    ]
-                }
-
-            if course_key == "web":
-                return {
-                    "sections": [
-                        {
-                            "id": base + 1,
-                            "number": 1,
-                            "title": "Введение в веб-дизайн",
-                            "subsections": [
-                                {"id": base + 101, "icon": "📌", "title": "О курсе и принципы UI/UX", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 102, "icon": "🧭", "title": "Структура проекта и критерии оценки", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 2,
-                            "number": 2,
-                            "title": "Глава 1: HTML и базовая разметка",
-                            "subsections": [
-                                {"id": base + 201, "icon": "📚", "title": "Материал: семантика, формы, структура страницы", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 202, "icon": "📝", "title": "Тест: HTML-семантика", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 203, "icon": "🧩", "title": "Задание: сверстать страницу профиля", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 3,
-                            "number": 3,
-                            "title": "Глава 2: CSS и композиция",
-                            "subsections": [
-                                {"id": base + 301, "icon": "📚", "title": "Материал: flex/grid, адаптив, типографика", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 302, "icon": "📝", "title": "Тест: Flexbox/Grid и адаптивность", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 303, "icon": "🧩", "title": "Задание: адаптивный лендинг", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                    ]
-                }
-
-            if course_key == "db":
-                return {
-                    "sections": [
-                        {
-                            "id": base + 1,
-                            "number": 1,
-                            "title": "Введение в базы данных",
-                            "subsections": [
-                                {"id": base + 101, "icon": "📌", "title": "О курсе и СУБД", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 102, "icon": "🧰", "title": "Установка PostgreSQL / инструменты", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 2,
-                            "number": 2,
-                            "title": "Глава 1: SQL основы",
-                            "subsections": [
-                                {"id": base + 201, "icon": "📚", "title": "Материал: SELECT, WHERE, JOIN", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 202, "icon": "📝", "title": "Тест: базовый SQL", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 203, "icon": "🧩", "title": "Задание: запросы к учебной БД", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 3,
-                            "number": 3,
-                            "title": "Глава 2: Нормализация и проектирование",
-                            "subsections": [
-                                {"id": base + 301, "icon": "📚", "title": "Материал: 1НФ–3НФ, связи, ключи", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 302, "icon": "📝", "title": "Тест: нормальные формы", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 303, "icon": "🧩", "title": "Задание: спроектировать схему (ER)", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                    ]
-                }
-
-            if course_key == "algo":
-                return {
-                    "sections": [
-                        {
-                            "id": base + 1,
-                            "number": 1,
-                            "title": "Введение в алгоритмы",
-                            "subsections": [
-                                {"id": base + 101, "icon": "📌", "title": "О курсе и сложность алгоритмов", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 102, "icon": "🧭", "title": "Big-O нотация (база)", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 2,
-                            "number": 2,
-                            "title": "Глава 1: Массивы, списки, стек, очередь",
-                            "subsections": [
-                                {"id": base + 201, "icon": "📚", "title": "Материал: структуры данных (обзор)", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 202, "icon": "📝", "title": "Тест: базовые структуры данных", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 203, "icon": "🧩", "title": "Задание: реализовать стек/очередь", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                        {
-                            "id": base + 3,
-                            "number": 3,
-                            "title": "Глава 2: Сортировки и поиск",
-                            "subsections": [
-                                {"id": base + 301, "icon": "📚", "title": "Материал: сортировки O(n^2) и O(n log n)", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 302, "icon": "📝", "title": "Тест: сортировки", "status": "open", "statusIcon": "✅", "files": []},
-                                {"id": base + 303, "icon": "🧩", "title": "Задание: бинарный поиск + сортировка", "status": "open", "statusIcon": "✅", "files": []},
-                            ],
-                        },
-                    ]
-                }
-
-            # eng (default)
             return {
                 "sections": [
                     {
                         "id": base + 1,
                         "number": 1,
-                        "title": "Введение (English for IT)",
+                        "title": "Введение",
                         "subsections": [
-                            {"id": base + 101, "icon": "📌", "title": "О курсе и цели обучения", "status": "open", "statusIcon": "✅", "files": []},
-                            {"id": base + 102, "icon": "🗂️", "title": "Словарь курса и полезные ресурсы", "status": "open", "statusIcon": "✅", "files": []},
+                            {
+                                "id": base + 101,
+                                "icon": "📌",
+                                "title": "О курсе",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                            {
+                                "id": base + 102,
+                                "icon": "🧭",
+                                "title": "Навигация и правила",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
                         ],
                     },
                     {
                         "id": base + 2,
                         "number": 2,
-                        "title": "Глава 1: Деловая переписка",
+                        "title": "Первый модуль",
                         "subsections": [
-                            {"id": base + 201, "icon": "📚", "title": "Материал: структура письма, tone, etiquette", "status": "open", "statusIcon": "✅", "files": []},
-                            {"id": base + 202, "icon": "📝", "title": "Тест: business email basics", "status": "open", "statusIcon": "✅", "files": []},
-                            {"id": base + 203, "icon": "✉️", "title": "Задание: написать письмо заказчику (шаблон)", "status": "open", "statusIcon": "✅", "files": []},
-                        ],
-                    },
-                    {
-                        "id": base + 3,
-                        "number": 3,
-                        "title": "Глава 2: Собеседование и презентации",
-                        "subsections": [
-                            {"id": base + 301, "icon": "📚", "title": "Материал: self-intro, strengths, projects", "status": "open", "statusIcon": "✅", "files": []},
-                            {"id": base + 302, "icon": "📝", "title": "Тест: interview questions (B1–B2)", "status": "open", "statusIcon": "✅", "files": []},
-                            {"id": base + 303, "icon": "🎤", "title": "Задание: короткая презентация проекта на англ.", "status": "open", "statusIcon": "✅", "files": []},
+                            {
+                                "id": base + 201,
+                                "icon": "📚",
+                                "title": "Материалы",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
+                            {
+                                "id": base + 202,
+                                "icon": "📝",
+                                "title": "Задания",
+                                "status": "open",
+                                "statusIcon": "✅",
+                                "files": [],
+                            },
                         ],
                     },
                 ]
             }
 
-        def ensure_course_with_structure(name: str, description: str, course_key: str):
-            # 1) курс
-            course = db.query(Course).filter(Course.name == name).first()
-            if not course:
-                course = Course(name=name, description=description)
-                db.add(course)
-                db.commit()
-                db.refresh(course)
-                print(f"✅ Создан курс: {name}")
-
-            # 2) структура
-            exists_structure = (
-                db.query(CourseStructureModel)
-                .filter(CourseStructureModel.course_id == course.id)
-                .first()
+        courses_count = db.query(Course).count()
+        if courses_count == 0:
+            course = Course(
+                name=DEFAULT_COURSE_NAME,
+                description=DEFAULT_COURSE_DESCRIPTION,
             )
-            if not exists_structure:
-                cs = CourseStructureModel(
-                    course_id=course.id,
-                    data=build_course_structure(course.id, course_key),
+            db.add(course)
+            db.commit()
+            db.refresh(course)
+            print(f"Создан стартовый курс: {DEFAULT_COURSE_NAME}")
+
+            cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
+            db.add(cs)
+            db.commit()
+            print("Создана стартовая структура курса")
+
+        else:
+            course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
+            if course:
+                exists_structure = (
+                    db.query(CourseStructureModel)
+                    .filter(CourseStructureModel.course_id == course.id)
+                    .first()
                 )
-                db.add(cs)
-                db.commit()
-                print(f"✅ Создана структура курса: {name}")
+                if not exists_structure:
+                    cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
+                    db.add(cs)
+                    db.commit()
+                    print(" Для существующего начального курса создана структура")
 
-        seed_courses = [
-            ("Математический анализ", "Основы математического анализа: пределы, производные и их применение.", "math"),
-            ("Основы программирования", "Введение в программирование на Python: базовый синтаксис, ветвления, циклы, функции.", "prog"),
-            ("Веб-дизайн", "Создание современных веб-интерфейсов: HTML, CSS, адаптивная верстка.", "web"),
-            ("Английский язык", "Деловой английский для IT: переписка, интервью и презентации.", "eng"),
-            ("Базы данных", "Проектирование и работа с БД: SQL, нормализация, проектирование схем.", "db"),
-            ("Алгоритмы и структуры данных", "Базовые структуры данных и алгоритмы: сложность, сортировки, поиск.", "algo"),
-        ]
-
-        for name, desc, key in seed_courses:
-            ensure_course_with_structure(name, desc, key)
-
-    except Exception as e:
-
-        print("❌ Ошибка на startup (seed/admin):", repr(e))
     finally:
         db.close()
+
+
+
 
 # ---------- auth ----------
 
@@ -1010,6 +844,8 @@ def get_status_message(status: UserStatus) -> str:
 
 # ---------- MESSENGER ----------
 
+# ---------- MESSENGER ----------
+
 @app.get("/api/messenger/threads", response_model=List[ThreadResponse])
 def get_message_threads(
     db: Session = Depends(get_db),
@@ -1035,7 +871,9 @@ def get_message_threads(
     
     result = []
     for thread in threads:
-        thread_dict = thread.to_dict()
+        # Передаем ID текущего пользователя в to_dict
+        thread_dict = thread.to_dict(current_user.id)
+        
         # Получаем последнее сообщение
         last_message = (
             db.query(Message)
@@ -1045,7 +883,22 @@ def get_message_threads(
         )
         if last_message:
             thread_dict["last_message"] = last_message.to_dict()
+        
+        # Пересчитываем количество непрочитанных сообщений (только чужие)
+        unread_count = (
+            db.query(Message)
+            .filter(Message.thread_id == thread.id)
+            .filter(Message.is_read == False)
+            .filter(Message.sender_id != current_user.id)  # Только сообщения от другого пользователя
+            .count()
+        )
+        
+        thread.unread_count = unread_count
+        thread_dict["unread_count"] = unread_count
+        
         result.append(thread_dict)
+    
+    db.commit()  # Сохраняем обновленные счетчики
     
     return result
 
@@ -1092,20 +945,28 @@ def get_thread_messages(
     elif current_user.role != UserRole.STUDENT and thread.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
     
-    # Помечаем сообщения как прочитанные
+    # Помечаем сообщения от другого пользователя как прочитанные
     unread_messages = (
         db.query(Message)
         .filter(Message.thread_id == thread_id)
         .filter(Message.is_read == False)
-        .filter(Message.sender_id != current_user.id)
+        .filter(Message.sender_id != current_user.id)  # Только чужие сообщения
         .all()
     )
     
     for msg in unread_messages:
         msg.is_read = True
     
-    # Обновляем счетчик непрочитанных
-    thread.unread_count = 0
+    # Пересчитываем количество непрочитанных сообщений (только чужие)
+    unread_count = (
+        db.query(Message)
+        .filter(Message.thread_id == thread_id)
+        .filter(Message.is_read == False)
+        .filter(Message.sender_id != current_user.id)
+        .count()
+    )
+    
+    thread.unread_count = unread_count
     db.commit()
     
     # Получаем сообщения
@@ -1152,11 +1013,14 @@ def send_message(
     if not thread:
         thread = MessageThread(
             student_id=current_user.id,
-            teacher_id=teacher.id
+            teacher_id=teacher.id,
+            unread_count=1  # При создании диалога - одно непрочитанное сообщение (от студента для преподавателя)
         )
         db.add(thread)
-        db.commit()
-        db.refresh(thread)
+        db.flush()  # Получаем ID диалога перед коммитом
+    else:
+        # Увеличиваем счетчик непрочитанных только для получателя (преподавателя)
+        thread.unread_count += 1
     
     # Создаем сообщение
     message = Message(
@@ -1166,9 +1030,8 @@ def send_message(
     )
     db.add(message)
     
-    # Обновляем время последнего сообщения и счетчик непрочитанных
+    # Обновляем время последнего сообщения
     thread.last_message_at = datetime.utcnow()
-    thread.unread_count += 1
     
     db.commit()
     db.refresh(message)
@@ -1179,7 +1042,7 @@ def send_message(
 @app.post("/api/messenger/messages/{thread_id}/reply", response_model=MessageResponse)
 def reply_to_thread(
     thread_id: int,
-    request: dict = Body(...),  # Принимаем JSON объект
+    request: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1219,8 +1082,10 @@ def reply_to_thread(
     )
     db.add(message)
     
-    # Обновляем время последнего сообщения и счетчик непрочитанных
+    # Обновляем время последнего сообщения
     thread.last_message_at = datetime.utcnow()
+    
+    # Увеличиваем счетчик непрочитанных для получателя
     thread.unread_count += 1
     
     db.commit()
@@ -1234,7 +1099,7 @@ def get_unread_message_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Получить количество непрочитанных сообщений"""
+    """Получить количество непрочитанных сообщений (только чужие)"""
     if current_user.role == UserRole.STUDENT:
         threads = db.query(MessageThread).filter(
             MessageThread.student_id == current_user.id,
@@ -1246,8 +1111,26 @@ def get_unread_message_count(
             MessageThread.is_archived == False
         ).all()
     
-    total_unread = sum(thread.unread_count for thread in threads)
-    thread_unread_counts = {thread.id: thread.unread_count for thread in threads}
+    total_unread = 0
+    thread_unread_counts = {}
+    
+    for thread in threads:
+        # Считаем только непрочитанные сообщения от другого пользователя
+        unread_count = (
+            db.query(Message)
+            .filter(Message.thread_id == thread.id)
+            .filter(Message.is_read == False)
+            .filter(Message.sender_id != current_user.id)  # Только чужие сообщения
+            .count()
+        )
+        
+        # Обновляем счетчик в базе
+        thread.unread_count = unread_count
+        
+        total_unread += unread_count
+        thread_unread_counts[thread.id] = unread_count
+    
+    db.commit()  # Сохраняем обновленные счетчики
     
     return UnreadCountResponse(
         total_unread=total_unread,
@@ -1261,7 +1144,7 @@ def mark_thread_as_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Пометить все сообщения в диалоге как прочитанные"""
+    """Пометить все сообщения в диалоге как прочитанные (только чужие)"""
     thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
     if not thread:
         raise HTTPException(status_code=404, detail="Диалог не найден")
@@ -1272,19 +1155,19 @@ def mark_thread_as_read(
     elif current_user.role != UserRole.STUDENT and thread.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Нет доступа к этому диалогу")
     
-    # Помечаем все сообщения как прочитанные
+    # Помечаем все сообщения от другого пользователя как прочитанные
     unread_messages = (
         db.query(Message)
         .filter(Message.thread_id == thread_id)
         .filter(Message.is_read == False)
-        .filter(Message.sender_id != current_user.id)
+        .filter(Message.sender_id != current_user.id)  # Только чужие сообщения
         .all()
     )
     
     for msg in unread_messages:
         msg.is_read = True
     
-    # Сбрасываем счетчик непрочитанных
+    # Сбрасываем счетчик непрочитанных (только для чужих сообщений)
     thread.unread_count = 0
     db.commit()
     
@@ -1314,5 +1197,52 @@ def archive_thread(
     return {"success": True, "message": "Диалог архивирован"}
 
 
+# Добавим эндпоинт для получения общего количества непрочитанных (только чужие)
+@app.get("/api/messenger/threads/unread-summary")
+def get_unread_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Получить краткую статистику по непрочитанным сообщениям (только чужие)"""
+    if current_user.role == UserRole.STUDENT:
+        threads = db.query(MessageThread).filter(
+            MessageThread.student_id == current_user.id,
+            MessageThread.is_archived == False
+        ).all()
+    else:
+        threads = db.query(MessageThread).filter(
+            MessageThread.teacher_id == current_user.id,
+            MessageThread.is_archived == False
+        ).all()
+    
+    total_unread = 0
+    threads_with_unread = []
+    
+    for thread in threads:
+        # Считаем только непрочитанные сообщения от других пользователей
+        unread_count = (
+            db.query(Message)
+            .filter(Message.thread_id == thread.id)
+            .filter(Message.is_read == False)
+            .filter(Message.sender_id != current_user.id)  # Только чужие сообщения
+            .count()
+        )
+        
+        if unread_count > 0:
+            total_unread += unread_count
+            threads_with_unread.append({
+                "id": thread.id,
+                "teacher_name": thread.teacher.full_name if thread.teacher else "Неизвестный",
+                "student_name": thread.student.full_name if thread.student else "Неизвестный",
+                "unread_count": unread_count
+            })
+    
+    return {
+        "total_unread": total_unread,
+        "threads_with_unread": threads_with_unread,
+        "total_threads": len(threads)
+    }
+    
+    return {"success": True, "message": "Диалог архивирован"}
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
