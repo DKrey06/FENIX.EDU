@@ -28,22 +28,20 @@ const routes = [
     component: IndexPage,
     meta: { requiresAuth: true },
   },
-  {
-    path: "/admin",
-    component: () => import("../pages/AdminLayout.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
-    children: [
-      {
-        path: "",
-        redirect: "/admin/users",
-      },
-      {
-        path: "users",
-        name: "AdminUsers",
-        component: () => import("../pages/AdminUsersPage.vue"),
-      },
-    ],
-  },
+{
+  path: "/admin",
+  component: () => import("../pages/AdminLayout.vue"),
+  meta: { requiresAuth: true, requiresAdminPanel: true },
+  children: [
+    { path: "", redirect: "/admin/users" },
+    {
+      path: "users",
+      name: "AdminUsers",
+      component: () => import("../pages/AdminUsersPage.vue"),
+    },
+  ],
+},
+
   {
     path: "/login",
     name: "Login",
@@ -154,12 +152,13 @@ router.beforeEach(async (to, from, next) => {
     }
     return;
   }
-
-  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+if (to.meta.requiresAdminPanel) {
+  const allowed = ["admin", "department_head"];
+  if (!isAuthenticated || !user || !allowed.includes(user.role)) {
     next("/dashboard");
     return;
   }
-
+}
   if (to.meta.requiresAuth && isAuthenticated && user) {
     if (user.status === "pending") {
       next("/waiting-approval");

@@ -328,14 +328,14 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 # ---------- admin users ----------
 
-
 @app.get("/api/admin/users", response_model=UserListResponse)
 def get_all_users(
     status: Optional[UserStatus] = None,
     role: Optional[UserRole] = None,
     page: int = 1,
     limit: int = 20,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_department_head),
+    
     db: Session = Depends(get_db),
 ):
     query = db.query(User)
@@ -344,6 +344,12 @@ def get_all_users(
         query = query.filter(User.status == status)
     if role:
         query = query.filter(User.role == role)
+
+    if current_user.role == UserRole.DEPARTMENT_HEAD:
+        query = query.filter(User.role != UserRole.ADMIN)
+
+    if current_user.role == UserRole.ADMIN:
+        query = query.filter(User.id != current_user.id)
 
     total = query.count()
     users = query.offset((page - 1) * limit).limit(limit).all()
