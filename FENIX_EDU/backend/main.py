@@ -14,7 +14,11 @@ from schemas import MessageCreate, ThreadResponse, MessageResponse, UnreadCountR
 from pydantic import BaseModel
 
 from database import engine, get_db, Base
-from models import User, Course, Group, UserRole, UserStatus, CourseStructureModel, DiscussionComment, DiscussionReply
+from models import (
+    User, Course, Group, UserRole, UserStatus, CourseStructureModel,
+    DiscussionComment, DiscussionReply,
+    Assignment, AssignmentSubmission, AssignmentAttachment
+)
 from schemas import (
     UserCreate,
     UserLogin,
@@ -27,6 +31,13 @@ from schemas import (
     DiscussionCommentCreate,
     DiscussionReplyCreate,
     DiscussionCommentOut,
+    AssignmentCreate,
+    AssignmentUpdate,
+    AssignmentOut,
+    AssignmentAttachmentOut,
+    SubmissionCreate,
+    SubmissionGrade,
+    SubmissionOut,
 )
 
 from settings import (
@@ -71,8 +82,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-DEFAULT_COURSE_NAME = "Первый курс"
-DEFAULT_COURSE_DESCRIPTION = "Курс создаётся автоматически при первом запуске."
 
 # ---------- Pydantic-схемы для структуры курса ----------
 
@@ -184,35 +193,12 @@ def create_first_admin():
                 ]
             }
 
-        courses_count = db.query(Course).count()
-        if courses_count == 0:
-            course = Course(
-                name=DEFAULT_COURSE_NAME,
-                description=DEFAULT_COURSE_DESCRIPTION,
-            )
-            db.add(course)
-            db.commit()
-            db.refresh(course)
-            print(f"Создан стартовый курс: {DEFAULT_COURSE_NAME}")
 
             cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
             db.add(cs)
             db.commit()
             print("Создана стартовая структура курса")
 
-        else:
-            course = db.query(Course).filter(Course.name == DEFAULT_COURSE_NAME).first()
-            if course:
-                exists_structure = (
-                    db.query(CourseStructureModel)
-                    .filter(CourseStructureModel.course_id == course.id)
-                    .first()
-                )
-                if not exists_structure:
-                    cs = CourseStructureModel(course_id=course.id, data=build_default_structure(course.id))
-                    db.add(cs)
-                    db.commit()
-                    print(" Для существующего начального курса создана структура")
 
     finally:
         db.close()
@@ -369,6 +355,26 @@ def get_all_users(
         pages=(total + limit - 1) // limit,
     )
 
+@app.post("/api/admin/users/{user_id}/promote-department-head")
+def promote_to_department_head(
+    user_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    user.role = UserRole.DEPARTMENT_HEAD
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "success": True,
+        "message": "Пользователь назначен заведующим кафедры",
+        "user": user.to_dict(),
+    }
+
 
 @app.put("/api/admin/users/{user_id}/status")
 def update_user_status(
@@ -404,12 +410,13 @@ def update_user_status(
 @app.post("/api/courses", response_model=dict)
 def create_course(
     course_data: CourseCreate,
-    current_user: User = Depends(require_department_head),
+    current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ):
     course = Course(
         name=course_data.name,
         description=course_data.description,
+        target_group=course_data.target_group,
     )
     db.add(course)
     db.commit()
@@ -417,7 +424,6 @@ def create_course(
 
     return {
         "success": True,
-        "message": "Курс создан",
         "course": course.to_dict(),
     }
 
@@ -427,9 +433,19 @@ def get_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_account_confirmation()),
 ):
-    courses = db.query(Course).all()
-    return [course.to_dict() for course in courses]
+    if current_user.role == UserRole.STUDENT:
+        if not current_user.group:
+            return []
 
+        courses = (
+            db.query(Course)
+            .filter(Course.target_group == current_user.group)
+            .all()
+        )
+    else:
+        courses = db.query(Course).all()
+
+    return [course.to_dict() for course in courses]
 
 @app.post("/api/courses/{course_id}/structure", response_model=dict)
 def create_course_structure(
@@ -656,6 +672,231 @@ def create_discussion_reply(
         "created_at": reply.created_at,
     }
 
+# ---------- assignments ----------
+
+@app.get("/api/assignments", response_model=List[AssignmentOut])
+def get_assignments(
+    course_id: int,
+    subsection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_account_confirmation()),
+):
+    items = (
+        db.query(Assignment)
+        .filter(Assignment.course_id == course_id)
+        .filter(Assignment.subsection_id == subsection_id)
+        .order_by(Assignment.created_at.desc())
+        .all()
+    )
+    return items
+
+
+@app.post("/api/assignments", response_model=AssignmentOut)
+def create_assignment(
+    payload: AssignmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    a = Assignment(
+        course_id=payload.course_id,
+        subsection_id=payload.subsection_id,
+        title=payload.title.strip(),
+        description=(payload.description.strip() if payload.description else None),
+        deadline=payload.deadline,
+        created_by=current_user.id,
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return a
+
+@app.put("/api/assignments/{assignment_id}", response_model=AssignmentOut)
+def update_assignment(
+    assignment_id: int,
+    payload: AssignmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Задание не найдено")
+    if payload.title is not None:
+        a.title = payload.title.strip()
+    if payload.description is not None:
+        a.description = payload.description.strip() if payload.description else None
+    if payload.deadline is not None:
+        a.deadline = payload.deadline
+
+    db.commit()
+    db.refresh(a)
+    return a
+
+
+@app.post("/api/assignments/{assignment_id}/submit", response_model=SubmissionOut)
+def submit_assignment(
+    assignment_id: int,
+    payload: SubmissionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_account_confirmation()),
+):
+    # только студент сдаёт
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="Сдавать задания может только студент")
+
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Задание не найдено")
+
+    sub = (
+        db.query(AssignmentSubmission)
+        .filter(AssignmentSubmission.assignment_id == assignment_id)
+        .filter(AssignmentSubmission.student_id == current_user.id)
+        .first()
+    )
+
+    if not sub:
+        sub = AssignmentSubmission(
+            assignment_id=assignment_id,
+            student_id=current_user.id,
+            content=(payload.content.strip() if payload.content else None),
+            file_url=payload.file_url,
+        )
+        db.add(sub)
+    else:
+        # пересдача
+        sub.content = (payload.content.strip() if payload.content else None)
+        sub.file_url = payload.file_url
+
+    db.commit()
+    db.refresh(sub)
+
+    out = sub.to_dict()
+    return out
+
+
+@app.get("/api/assignments/{assignment_id}/submissions", response_model=List[SubmissionOut])
+def get_submissions(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Задание не найдено")
+
+    subs = (
+        db.query(AssignmentSubmission)
+        .filter(AssignmentSubmission.assignment_id == assignment_id)
+        .order_by(AssignmentSubmission.created_at.desc())
+        .all()
+    )
+    return [s.to_dict() for s in subs]
+
+
+@app.put("/api/submissions/{submission_id}/grade", response_model=SubmissionOut)
+def grade_submission(
+    submission_id: int,
+    payload: SubmissionGrade,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    sub = db.query(AssignmentSubmission).filter(AssignmentSubmission.id == submission_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Сдача не найдена")
+
+    sub.grade = payload.grade
+    sub.teacher_comment = payload.teacher_comment.strip() if payload.teacher_comment else None
+
+    db.commit()
+    db.refresh(sub)
+    return sub.to_dict()
+
+# ---------- assignment attachments ----------
+
+@app.get("/api/assignments/{assignment_id}/attachments", response_model=List[AssignmentAttachmentOut])
+def get_assignment_attachments(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_account_confirmation()),
+):
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Задание не найдено")
+
+    items = (
+        db.query(AssignmentAttachment)
+        .filter(AssignmentAttachment.assignment_id == assignment_id)
+        .order_by(AssignmentAttachment.uploaded_at.asc())
+        .all()
+    )
+    return items
+
+
+@app.post("/api/assignments/{assignment_id}/attachments", response_model=List[AssignmentAttachmentOut])
+async def upload_assignment_attachments(
+    assignment_id: int,
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Задание не найдено")
+
+    saved = []
+    for f in files:
+        file_id = int(datetime.utcnow().timestamp() * 1000)
+        ext = os.path.splitext(f.filename)[1]
+        safe_name = f"assign_{assignment_id}_{file_id}{ext}"
+        file_path = os.path.join(UPLOAD_DIR, safe_name)
+
+        content = await f.read()
+        with open(file_path, "wb") as out:
+            out.write(content)
+
+        att = AssignmentAttachment(
+            assignment_id=assignment_id,
+            name=f.filename,
+            size=len(content),
+            url=f"/uploads/{safe_name}",
+        )
+        db.add(att)
+        saved.append(att)
+
+    db.commit()
+    return saved
+
+
+@app.delete("/api/assignments/{assignment_id}/attachments/{attachment_id}")
+def delete_assignment_attachment(
+    assignment_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    att = (
+        db.query(AssignmentAttachment)
+        .filter(AssignmentAttachment.id == attachment_id)
+        .filter(AssignmentAttachment.assignment_id == assignment_id)
+        .first()
+    )
+    if not att:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    # пробуем удалить физический файл (не критично если не найдём)
+    try:
+        if att.url and att.url.startswith("/uploads/"):
+            filename = att.url.replace("/uploads/", "")
+            path = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(path):
+                os.remove(path)
+    except Exception:
+        pass
+
+    db.delete(att)
+    db.commit()
+    return {"success": True}
+
 # ---------- файлы подразделов ----------
 
 @app.post(
@@ -819,6 +1060,37 @@ def reject_user(
         "user": user.to_dict(),
     }
 
+@app.post("/api/admin/users/{user_id}/promote-to-department-head")
+def promote_to_department_head(
+    user_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    if user.role != UserRole.TEACHER:
+        raise HTTPException(
+            status_code=400,
+            detail="Промоут возможен только для преподавателя",
+        )
+
+    if user.status != UserStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400,
+            detail="Пользователь должен быть подтвержден (ACTIVE)",
+        )
+
+    user.role = UserRole.DEPARTMENT_HEAD
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "success": True,
+        "message": "Пользователь повышен до заведующего кафедрой",
+        "user": user.to_dict(),
+    }
 
 @app.get("/api/auth/check-status")
 def check_account_status(
@@ -839,12 +1111,6 @@ def get_status_message(status: UserStatus) -> str:
         UserStatus.BLOCKED: "Ваш аккаунт заблокирован.",
     }
     return messages.get(status, "Неизвестный статус.")
-
-# main.py - добавить в правильное место (после других эндпоинтов)
-
-# ---------- MESSENGER ----------
-
-# ---------- MESSENGER ----------
 
 @app.get("/api/messenger/threads", response_model=List[ThreadResponse])
 def get_message_threads(
@@ -898,7 +1164,7 @@ def get_message_threads(
         
         result.append(thread_dict)
     
-    db.commit()  # Сохраняем обновленные счетчики
+    db.commit()  
     
     return result
 

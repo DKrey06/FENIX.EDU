@@ -77,6 +77,15 @@
                   Завершенные
                 </button>
               </div>
+
+              <button
+                v-if="canCreateCourse"
+                class="create-course-btn"
+                @click="openCreateModal"
+              >
+                + Создать курс
+              </button>
+
               <div class="filter-container">
                 <button class="filter-btn" @click="toggleFilter">Фильтр</button>
                 <div class="filter-dropdown" v-if="showFilter">
@@ -169,6 +178,70 @@
             </div>
           </div>
         </div>
+
+        <!-- Create course modal -->
+        <div
+          v-if="showCreateModal"
+          class="modal-overlay"
+          @click.self="closeCreateModal"
+        >
+          <div class="modal-card">
+            <div class="modal-header">
+              <h3 class="modal-title">Создать курс</h3>
+              <button class="modal-close" @click="closeCreateModal">✕</button>
+            </div>
+
+            <div class="modal-body">
+              <label class="modal-label">Название</label>
+              <input
+                v-model="newCourseName"
+                class="modal-input"
+                type="text"
+                placeholder="Например: Математика 1"
+              />
+
+              <label class="modal-label">Описание (необязательно)</label>
+              <textarea
+                v-model="newCourseDescription"
+                class="modal-textarea"
+                placeholder="Кратко о курсе..."
+              ></textarea>
+
+              <label class="modal-label">Группа (кому доступен курс)</label>
+              <input
+                v-model="newCourseGroup"
+                class="modal-input"
+                type="text"
+                placeholder="Например: ИС-21"
+              />
+
+              <div v-if="createError" class="modal-error">
+                {{ createError }}
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                class="modal-btn secondary"
+                @click="closeCreateModal"
+                :disabled="isCreating"
+              >
+                Отмена
+              </button>
+              <button
+                class="modal-btn primary"
+                @click="createCourse"
+                :disabled="
+                  isCreating ||
+                  !newCourseName.trim() ||
+                  !newCourseGroup.trim()
+                "
+              >
+                {{ isCreating ? "Создание..." : "Создать" }}
+              </button>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -187,6 +260,76 @@ const authStore = useAuthStore();
 const activeTab = ref("inProgress");
 const showFilter = ref(false);
 const isLoading = ref(false);
+
+const showCreateModal = ref(false);
+const newCourseName = ref("");
+const newCourseDescription = ref("");
+const newCourseGroup = ref("");
+const isCreating = ref(false);
+const createError = ref("");
+
+const canCreateCourse = computed(() => {
+  const role = authStore.user?.role;
+  return role === "teacher" || role === "department_head" || role === "admin";
+});
+
+const openCreateModal = () => {
+  createError.value = "";
+  newCourseName.value = "";
+  newCourseDescription.value = "";
+  newCourseGroup.value = authStore.user?.group || "";
+  showCreateModal.value = true;
+};
+
+const closeCreateModal = () => {
+  showCreateModal.value = false;
+  isCreating.value = false;
+  createError.value = "";
+};
+
+const createCourse = async () => {
+  const name = newCourseName.value.trim();
+  const targetGroup = newCourseGroup.value.trim();
+  const description = newCourseDescription.value.trim();
+
+  if (!name || !targetGroup) return;
+
+  try {
+    isCreating.value = true;
+    createError.value = "";
+
+    const token = localStorage.getItem("access_token");
+
+    const resp = await fetch(`${API_URL}/courses`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        description: description || null,
+        target_group: targetGroup,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      createError.value = `Ошибка создания курса: ${resp.status} ${text || ""}`.trim();
+      return;
+    }
+
+    closeCreateModal();
+    await loadCourses();
+    activeTab.value = "inProgress";
+  } catch (e) {
+    console.error("Ошибка создания курса:", e);
+    createError.value = "Ошибка сети при создании курса";
+  } finally {
+    isCreating.value = false;
+  }
+};
 
 const filters = ref([
   { id: 1, name: "Недавние", selected: false },
@@ -213,12 +356,10 @@ const getFilterIcon = (filterName) => {
   }
 };
 
-// реальные курсы из бэкенда
 const courses = ref([]);
 
-// подготавливаем курс к отображению (добавляем статус/прогресс, если их нет)
 const mapBackendCourse = (c) => {
-  const status = c.status || "inProgress"; // пока можно держать всё "в процессе"
+  const status = c.status || "inProgress";
   const progress = c.progress ?? 0;
   const createdAt = c.created_at ? new Date(c.created_at) : new Date();
 
@@ -228,7 +369,6 @@ const mapBackendCourse = (c) => {
     description: c.description,
     status,
     progress,
-    // поля для фильтров
     date: createdAt.toISOString().slice(0, 10),
     isPopular: false,
     isNew: false,
@@ -317,7 +457,6 @@ const loadCourses = async () => {
     }
 
     const data = await resp.json();
-    // мапим каждый курс
     courses.value = data.map(mapBackendCourse);
   } catch (e) {
     console.error("Ошибка загрузки курсов:", e);
@@ -329,7 +468,11 @@ const loadCourses = async () => {
 const openCourse = (courseId) => {
   const user = authStore.user;
 
-  if (user?.role === "teacher") {
+  if (
+    user?.role === "teacher" ||
+    user?.role === "department_head" ||
+    user?.role === "admin"
+  ) {
     router.push({ name: "CourseViewEdit", params: { id: courseId } });
   } else {
     router.push({ name: "CourseView", params: { id: courseId } });
@@ -343,7 +486,6 @@ const handleLogout = () => {
   router.push("/login");
 };
 </script>
-
 <style scoped>
 .archive-page {
   min-height: calc(100vh - 200px);

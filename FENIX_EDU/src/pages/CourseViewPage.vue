@@ -74,13 +74,39 @@
                   <div class="subsection-text">
                     <div class="subsection-name">{{ subsection.title }}</div>
                     <div class="subsection-description">
-                      Задание раздела и прикреплённые материалы.
-                    </div>
+                    {{ assignmentsMap[subsection.id]?.description || "Материалы и описание задания пока не заполнены." }}
+                  </div>
                   </div>
                   <span class="subsection-status" :class="subsection.status">
                     {{ statusText(subsection.status) }}
                   </span>
                 </div>
+<!-- материалы задания (из БД) -->
+<div
+  v-if="assignmentsMap[subsection.id]?.attachments?.length"
+  class="subsection-files"
+>
+  <div
+    v-for="file in assignmentsMap[subsection.id].attachments"
+    :key="'a-' + file.id"
+    class="file-row"
+  >
+    <button
+      class="file-thumb"
+      v-if="isImage(file.name) && file.url"
+      type="button"
+      @click="openImage(API_BASE + file.url, file.name)"
+    >
+      <img :src="API_BASE + file.url" :alt="file.name" class="thumb-img" />
+    </button>
+    <div class="file-icon" v-else>📎</div>
+
+    <div class="file-info">
+      <div class="file-name">{{ file.name }}</div>
+      <div class="file-meta">{{ formatFileSize(file.size) }}</div>
+    </div>
+  </div>
+</div>
 
                 <div
                   v-if="subsection.files && subsection.files.length"
@@ -190,6 +216,47 @@ const authStore = useAuthStore();
 const activeSection = ref(1);
 const currentCourse = ref({});
 const sections = ref([]);
+const assignmentsMap = ref({}); // { [subsectionId]: assignment }
+
+const loadAssignmentForSubsection = async (courseId, subsectionId) => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const resp = await fetch(
+      `${API_URL}/assignments?course_id=${courseId}&subsection_id=${subsectionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!resp.ok) return;
+
+    const list = await resp.json();
+    if (Array.isArray(list) && list.length > 0) {
+      const a = list[0];
+
+      // подгружаем attachments
+      const filesResp = await fetch(`${API_URL}/assignments/${a.id}/attachments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      let attachments = [];
+      if (filesResp.ok) attachments = await filesResp.json();
+
+      assignmentsMap.value = {
+        ...assignmentsMap.value,
+        [subsectionId]: { ...a, attachments: attachments || [] },
+      };
+    }
+  } catch (e) {
+    console.error("loadAssignmentForSubsection error:", e);
+  }
+};
 
 const previewImageUrl = ref(null);
 const previewImageName = ref("");
@@ -201,7 +268,9 @@ const totalSubsections = computed(() => {
   );
 });
 
-const canEdit = computed(() => authStore.user?.role === "teacher");
+const canEdit = computed(() =>
+  ["teacher", "department_head", "admin"].includes(authStore.user?.role)
+);
 
 const goToDiscussion = () => {
   router.push({
@@ -290,6 +359,13 @@ const loadCourse = async () => {
     if (structResp.ok) {
       const data = await structResp.json();
       sections.value = data.sections || [];
+
+// Подгружаем задания для всех подразделов (после загрузки структуры)
+for (const sec of sections.value) {
+  for (const sub of sec.subsections || []) {
+    await loadAssignmentForSubsection(courseId, sub.id);
+  }
+}
       if (sections.value.length) {
         activeSection.value = sections.value[0].id;
       }
@@ -301,7 +377,6 @@ const loadCourse = async () => {
     sections.value = [];
   }
 };
-
 onMounted(() => {
   loadCourse();
 });

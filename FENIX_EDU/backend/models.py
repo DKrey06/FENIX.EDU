@@ -1,3 +1,6 @@
+import enum
+from datetime import datetime
+
 from sqlalchemy import (
     Column,
     Integer,
@@ -10,10 +13,11 @@ from sqlalchemy import (
     JSON,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
-import enum
+
 from database import Base
 
+
+# -------- enums --------
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -29,39 +33,46 @@ class UserStatus(str, enum.Enum):
     BLOCKED = "blocked"
 
 
+# -------- users --------
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
+    full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.STUDENT)
-    status = Column(SQLEnum(UserStatus), nullable=False, default=UserStatus.PENDING)
 
+    role = Column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
+    status = Column(SQLEnum(UserStatus), default=UserStatus.PENDING, nullable=False)
+
+    # Для студентов (упрощённо строками, как у тебя в коде)
     course = Column(String, nullable=True)
     group = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     confirmed_at = Column(DateTime, nullable=True)
     confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    confirmations_given = relationship("User", foreign_keys=[confirmed_by])
+    # relationships
+    confirmed_by_user = relationship("User", remote_side=[id], uselist=False)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
-            "full_name": self.full_name,
             "email": self.email,
+            "full_name": self.full_name,
             "role": self.role,
             "status": self.status,
             "course": self.course,
             "group": self.group,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "confirmed_at": self.confirmed_at.isoformat() if self.confirmed_at else None,
+            "created_at": self.created_at,
+            "confirmed_at": self.confirmed_at,
             "confirmed_by": self.confirmed_by,
         }
 
+
+# -------- courses/groups --------
 
 class Course(Base):
     __tablename__ = "courses"
@@ -69,14 +80,24 @@ class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
+    # группа, для которой предназначен курс (используется в /api/courses для студентов)
+    target_group = Column(String, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    groups = relationship("Group", back_populates="course", cascade="all, delete-orphan")
+    structures = relationship("CourseStructureModel", back_populates="course", cascade="all, delete-orphan")
+    discussions = relationship("DiscussionComment", back_populates="course", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
+
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "target_group": self.target_group,
+            "created_at": self.created_at,
         }
 
 
@@ -85,18 +106,15 @@ class Group(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    course_id = Column(Integer, ForeignKey("courses.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
 
-    course = relationship("Course")
+    course = relationship("Course", back_populates="groups")
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
             "course_id": self.course_id,
-            "course_name": self.course.name if self.course else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
@@ -104,126 +122,167 @@ class CourseStructureModel(Base):
     __tablename__ = "course_structures"
 
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, ForeignKey("courses.id"), unique=True, index=True, nullable=False)
-    data = Column(JSON, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), unique=True, nullable=False)
+    data = Column(JSON, default=dict, nullable=False)
 
-    course = relationship("Course", backref="structure")
+    course = relationship("Course", back_populates="structures")
 
+
+# -------- discussions --------
 
 class DiscussionComment(Base):
     __tablename__ = "discussion_comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, ForeignKey("courses.id"), index=True, nullable=False)
-    subsection_id = Column(Integer, index=True, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    subsection_id = Column(Integer, nullable=False)
 
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     content = Column(Text, nullable=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     author = relationship("User")
-    replies = relationship(
-        "DiscussionReply",
-        back_populates="comment",
-        cascade="all, delete-orphan",
-        order_by="DiscussionReply.created_at",
-    )
+    course = relationship("Course", back_populates="discussions")
+    replies = relationship("DiscussionReply", back_populates="comment", cascade="all, delete-orphan")
 
 
 class DiscussionReply(Base):
     __tablename__ = "discussion_replies"
 
     id = Column(Integer, primary_key=True, index=True)
-    comment_id = Column(Integer, ForeignKey("discussion_comments.id"), index=True, nullable=False)
-
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    comment_id = Column(Integer, ForeignKey("discussion_comments.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     content = Column(Text, nullable=False)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     author = relationship("User")
     comment = relationship("DiscussionComment", back_populates="replies")
 
-# Добавить в models.py в конец файла:
+
+# -------- assignments --------
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    subsection_id = Column(Integer, nullable=False)
+
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    deadline = Column(DateTime, nullable=True)
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    course = relationship("Course", back_populates="assignments")
+    creator = relationship("User")
+    submissions = relationship("AssignmentSubmission", back_populates="assignment", cascade="all, delete-orphan")
+    attachments = relationship("AssignmentAttachment", back_populates="assignment", cascade="all, delete-orphan")
+
+
+class AssignmentSubmission(Base):
+    __tablename__ = "assignment_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    content = Column(Text, nullable=True)
+    file_url = Column(String, nullable=True)
+
+    grade = Column(Integer, nullable=True)
+    teacher_comment = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    assignment = relationship("Assignment", back_populates="submissions")
+    student = relationship("User")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "assignment_id": self.assignment_id,
+            "student_id": self.student_id,
+            "student_name": self.student.full_name if self.student else "",
+            "content": self.content,
+            "file_url": self.file_url,
+            "grade": self.grade,
+            "teacher_comment": self.teacher_comment,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+class AssignmentAttachment(Base):
+    __tablename__ = "assignment_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
+
+    name = Column(String, nullable=False)
+    size = Column(Integer, nullable=False)
+    url = Column(String, nullable=False)
+
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    assignment = relationship("Assignment", back_populates="attachments")
+
+
+# -------- messenger --------
+
 class MessageThread(Base):
     __tablename__ = "message_threads"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    last_message_at = Column(DateTime, default=datetime.utcnow)
-    unread_count = Column(Integer, default=0)
-    is_archived = Column(Boolean, default=False)
-    
-    # Отношения
+
+    last_message_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    unread_count = Column(Integer, default=0, nullable=False)
+    is_archived = Column(Boolean, default=False, nullable=False)
+
     student = relationship("User", foreign_keys=[student_id])
     teacher = relationship("User", foreign_keys=[teacher_id])
-    messages = relationship(
-        "Message",
-        back_populates="thread",
-        cascade="all, delete-orphan",
-        order_by="Message.created_at"
-    )
-    
-    def to_dict(self, current_user_id=None):
-        """
-        Возвращает данные диалога.
-        current_user_id: ID текущего пользователя (чтобы определить собеседника)
-        """
-        # Определяем, кто является собеседником
-        partner = None
-        partner_name = ""
+
+    def to_dict(self, current_user_id: int) -> dict:
+        partner = self.teacher if current_user_id == self.student_id else self.student
+        # аватарки пока нет — отдаём пустую строку (чтобы фронт не падал)
+        teacher_avatar = ""
         partner_avatar = ""
-        
-        if current_user_id:
-            if self.student_id == current_user_id:
-                # Текущий пользователь - студент, собеседник - преподаватель
-                partner = self.teacher
-            else:
-                # Текущий пользователь - преподаватель/админ, собеседник - студент
-                partner = self.student
-        
-        if partner:
-            partner_name = partner.full_name
-            partner_avatar = get_avatar_initials(partner.full_name)
-        
-        # Если current_user_id не передан, используем старую логику
-        if not partner_name and self.teacher:
-            partner_name = self.teacher.full_name
-            partner_avatar = get_avatar_initials(self.teacher.full_name)
-        
-        result = {
+        return {
             "id": self.id,
             "student_id": self.student_id,
             "teacher_id": self.teacher_id,
             "student_name": self.student.full_name if self.student else "",
             "teacher_name": self.teacher.full_name if self.teacher else "",
-            "teacher_avatar": get_avatar_initials(self.teacher.full_name) if self.teacher else "",
-            "partner_name": partner_name,  # Имя собеседника
-            "partner_avatar": partner_avatar,  # Аватар собеседника
-            "partner_id": partner.id if partner else (self.teacher_id if self.student_id == current_user_id else self.student_id),
-            "last_message_at": self.last_message_at.isoformat() if self.last_message_at else None,
+            "teacher_avatar": teacher_avatar,
+            "partner_name": partner.full_name if partner else "",
+            "partner_avatar": partner_avatar,
+            "partner_id": partner.id if partner else 0,
+            "last_message_at": self.last_message_at,
             "unread_count": self.unread_count,
-            "is_archived": self.is_archived
+            "is_archived": self.is_archived,
         }
-        
-        return result
+
 
 class Message(Base):
     __tablename__ = "messages"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     thread_id = Column(Integer, ForeignKey("message_threads.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
     content = Column(Text, nullable=False)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    thread = relationship("MessageThread", back_populates="messages")
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    thread = relationship("MessageThread")
     sender = relationship("User")
-    
-    def to_dict(self):
+
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "thread_id": self.thread_id,
@@ -232,13 +291,5 @@ class Message(Base):
             "sender_role": self.sender.role if self.sender else UserRole.STUDENT,
             "content": self.content,
             "is_read": self.is_read,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at,
         }
-
-def get_avatar_initials(name: str) -> str:
-    if not name:
-        return "👤"
-    parts = name.split()
-    if len(parts) >= 2:
-        return (parts[0][0] + parts[1][0]).upper()
-    return name[:2].upper() if len(name) >= 2 else name[0].upper() + "?"

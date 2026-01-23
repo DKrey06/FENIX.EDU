@@ -11,19 +11,19 @@ export const useAuthStore = defineStore("auth", () => {
   const lastAuthCheck = ref(0);
   const authCheckInterval = 5 * 60 * 1000;
 
-  // NEW: флаг готовности, чтобы роутер мог "ждать" auth и не кидать на /login
   const isReady = ref(false);
   let initPromise = null;
 
-  const isTeacher = computed(() => user.value?.role === "teacher");
+const isTeacher = computed(() =>
+  ["teacher", "department_head", "admin"].includes(user.value?.role)
+);
+
   const isStudent = computed(() => user.value?.role === "student");
 
-  // NEW: быстрый синхронный "подъём" из localStorage
   const hydrateFromStorage = () => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
 
-    // Если есть токен — считаем, что сессия есть, чтобы не выбрасывало на /login до проверки /auth/me
     isAuthenticated.value = true;
 
     try {
@@ -35,18 +35,15 @@ export const useAuthStore = defineStore("auth", () => {
       }
     } catch (error) {
       console.error("Ошибка парсинга user_data:", error);
-      // ВАЖНО: user_data можно удалить, но токен не трогаем
       localStorage.removeItem("user_data");
     }
   };
 
-  // FIX: init должен быть await-able (его ждёт router.beforeEach)
   const init = async () => {
     if (isReady.value) return true;
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-      // 1) сначала поднимаем то, что есть локально (чтобы не редиректило на /login при старте)
       hydrateFromStorage();
 
       const token = localStorage.getItem("access_token");
@@ -55,14 +52,12 @@ export const useAuthStore = defineStore("auth", () => {
         return true;
       }
 
-      // 2) периодически проверяем пользователя на сервере, но НЕ стираем токены при сетевых ошибках
       const now = Date.now();
       if (now - lastAuthCheck.value > authCheckInterval) {
         try {
           await getCurrentUser();
         } catch (e) {
           console.error("init(): getCurrentUser failed:", e);
-          // ничего не чистим — просто считаем auth готовым
         }
       }
 
@@ -437,6 +432,32 @@ export const useAuthStore = defineStore("auth", () => {
 
     return await response.json();
   };
+  const promoteTeacherToDepartmentHead = async (userId) => {
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("Токен не найден");
+
+    const response = await fetch(
+      `${API_URL}/admin/users/${userId}/promote-department-head`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshToken();
+        return promoteTeacherToDepartmentHead(userId);
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  };
 
   const rejectUser = async (userId) => {
     const token = localStorage.getItem("access_token");
@@ -536,5 +557,6 @@ export const useAuthStore = defineStore("auth", () => {
     rejectUser,
     updateUserStatus,
     checkAccountStatus,
+    promoteTeacherToDepartmentHead,
   };
 });

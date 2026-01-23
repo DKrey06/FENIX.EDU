@@ -102,7 +102,84 @@
                     {{ subsection.statusIcon }}
                   </div>
                 </div>
+<!-- ----- ASSIGNMENT (DB) ----- -->
+<div class="assignment-box">
+  <div class="assignment-top">
+    <button
+      class="assign-btn"
+      type="button"
+      @click="async () => { await ensureAssignment(subsection.id, subsection.title); await loadAssignmentAttachments(subsection.id); }"
+      :disabled="assignmentLoading[subsection.id]"
+    >
+      {{ assignmentBySubsection[subsection.id]?.id ? "Открыть задание" : "Создать задание" }}
+      <span v-if="assignmentLoading[subsection.id]">⏳</span>
+    </button>
 
+    <button
+      v-if="assignmentBySubsection[subsection.id]?.id"
+      class="assign-save-btn"
+      type="button"
+      @click="saveAssignmentFields(subsection.id)"
+      :disabled="assignmentSaving[subsection.id]"
+    >
+      Сохранить поля
+      <span v-if="assignmentSaving[subsection.id]">⏳</span>
+    </button>
+  </div>
+
+  <div v-if="assignmentBySubsection[subsection.id]?.id" class="assignment-fields">
+    <label class="field-label">Описание задания</label>
+    <textarea
+      class="field-textarea"
+      v-model="assignmentBySubsection[subsection.id].description"
+      placeholder="Текст задания, требования, критерии..."
+      rows="4"
+    ></textarea>
+
+    <label class="field-label">Дедлайн</label>
+    <input
+      class="field-input"
+      type="datetime-local"
+      v-model="assignmentBySubsection[subsection.id].deadline"
+    />
+
+    <div class="file-upload">
+      <label class="file-upload-btn" :for="'assign-file-' + subsection.id">
+        {{ attachmentUploading[subsection.id] ? "Загрузка..." : "Прикрепить материалы к заданию" }}
+      </label>
+      <input
+        :id="'assign-file-' + subsection.id"
+        type="file"
+        class="file-input"
+        @change="uploadAssignmentAttachments($event, subsection.id)"
+        multiple
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar"
+      />
+    </div>
+
+    <div v-if="assignmentBySubsection[subsection.id]?.attachments?.length" class="files-list">
+      <div
+        v-for="file in assignmentBySubsection[subsection.id].attachments"
+        :key="file.id"
+        class="file-item"
+      >
+        <div class="file-thumb" v-if="isImage(file.name) && file.url">
+          <img :src="API_BASE + file.url" :alt="file.name" class="thumb-img" />
+        </div>
+        <span class="file-icon" v-else>FILE</span>
+
+        <div class="file-main">
+          <span class="file-name">{{ file.name }}</span>
+          <span class="file-size">{{ formatFileSize(file.size) }}</span>
+        </div>
+
+        <button class="file-delete-btn" @click="deleteAssignmentAttachment(subsection.id, file.id)">
+          Удалить
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
                 <div class="file-upload">
                   <label class="file-upload-btn" :for="'file-' + subsection.id">
                     Прикрепить файлы
@@ -224,6 +301,234 @@ const activeSection = ref(null);
 const currentCourse = ref({});
 const sections = ref([]);
 const isSaving = ref(false);
+
+// ---- assignments state ----
+
+const assignmentBySubsection = ref({}); // { [subsectionId]: assignmentObj }
+const assignmentLoading = ref({}); // { [subsectionId]: true/false }
+const assignmentSaving = ref({}); // { [subsectionId]: true/false }
+const attachmentUploading = ref({}); // { [subsectionId]: true/false }
+
+
+const setFlag = (objRef, key, val) => {
+  objRef.value = { ...objRef.value, [key]: val };
+};
+
+const ensureAssignment = async (subsectionId, titleFallback) => {
+  const courseId = route.params.id;
+  const token = localStorage.getItem("access_token");
+
+  setFlag(assignmentLoading, subsectionId, true);
+  try {
+    const listResp = await fetch(
+      `${API_URL}/assignments?course_id=${courseId}&subsection_id=${subsectionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (listResp.ok) {
+      const list = await listResp.json();
+      if (Array.isArray(list) && list.length > 0) {
+        assignmentBySubsection.value = {
+          ...assignmentBySubsection.value,
+          [subsectionId]: list[0],
+        };
+        return list[0];
+      }
+    }
+
+    const createResp = await fetch(`${API_URL}/assignments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        course_id: Number(courseId),
+        subsection_id: Number(subsectionId),
+        title: titleFallback || "Задание",
+        description: "",
+        deadline: null,
+      }),
+    });
+
+    if (!createResp.ok) {
+      const text = await createResp.text();
+      console.error("Не удалось создать задание:", createResp.status, text);
+      alert("Не удалось создать задание в БД");
+      return null;
+    }
+
+    const created = await createResp.json();
+    assignmentBySubsection.value = {
+      ...assignmentBySubsection.value,
+      [subsectionId]: created,
+    };
+    return created;
+  } catch (e) {
+    console.error("ensureAssignment error:", e);
+    alert("Ошибка при создании/загрузке задания");
+    return null;
+  } finally {
+    setFlag(assignmentLoading, subsectionId, false);
+  }
+};
+
+const saveAssignmentFields = async (subsectionId) => {
+  const token = localStorage.getItem("access_token");
+  const a = assignmentBySubsection.value[subsectionId];
+  if (!a?.id) {
+    alert("Сначала нажми «Создать задание в БД»");
+    return;
+  }
+
+  setFlag(assignmentSaving, subsectionId, true);
+  try {
+    const resp = await fetch(`${API_URL}/assignments/${a.id}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        title: a.title,
+        description: a.description || "",
+        deadline: a.deadline || null,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error("Ошибка обновления задания:", resp.status, text);
+      alert("Не удалось сохранить поля задания");
+      return;
+    }
+
+    const updated = await resp.json();
+    assignmentBySubsection.value = {
+      ...assignmentBySubsection.value,
+      [subsectionId]: updated,
+    };
+  } catch (e) {
+    console.error("saveAssignmentFields error:", e);
+    alert("Ошибка сохранения задания");
+  } finally {
+    setFlag(assignmentSaving, subsectionId, false);
+  }
+};
+
+const loadAssignmentAttachments = async (subsectionId) => {
+  const token = localStorage.getItem("access_token");
+  const a = assignmentBySubsection.value[subsectionId];
+  if (!a?.id) return;
+
+  try {
+    const resp = await fetch(`${API_URL}/assignments/${a.id}/attachments`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+    if (resp.ok) {
+      const files = await resp.json();
+      assignmentBySubsection.value = {
+        ...assignmentBySubsection.value,
+        [subsectionId]: { ...a, attachments: files || [] },
+      };
+    }
+  } catch (e) {
+    console.error("loadAssignmentAttachments error:", e);
+  }
+};
+
+const uploadAssignmentAttachments = async (event, subsectionId) => {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+
+  const token = localStorage.getItem("access_token");
+  const a = assignmentBySubsection.value[subsectionId];
+  if (!a?.id) {
+    alert("Сначала нажми «Создать задание в БД»");
+    event.target.value = "";
+    return;
+  }
+
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+
+  setFlag(attachmentUploading, subsectionId, true);
+  try {
+    const resp = await fetch(`${API_URL}/assignments/${a.id}/attachments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error("Ошибка загрузки файлов задания:", resp.status, text);
+      alert("Не удалось загрузить файлы к заданию");
+      return;
+    }
+
+    const uploaded = await resp.json();
+    const prev = a.attachments || [];
+    assignmentBySubsection.value = {
+      ...assignmentBySubsection.value,
+      [subsectionId]: { ...a, attachments: [...prev, ...(uploaded || [])] },
+    };
+
+    event.target.value = "";
+  } catch (e) {
+    console.error("uploadAssignmentAttachments error:", e);
+    alert("Ошибка загрузки файлов");
+  } finally {
+    setFlag(attachmentUploading, subsectionId, false);
+  }
+};
+
+const deleteAssignmentAttachment = async (subsectionId, attachmentId) => {
+  const token = localStorage.getItem("access_token");
+  const a = assignmentBySubsection.value[subsectionId];
+  if (!a?.id) return;
+
+  try {
+    const resp = await fetch(
+      `${API_URL}/assignments/${a.id}/attachments/${attachmentId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error("Ошибка удаления файла задания:", resp.status, text);
+      alert("Не удалось удалить файл");
+      return;
+    }
+
+    const next = (a.attachments || []).filter((x) => x.id !== attachmentId);
+    assignmentBySubsection.value = {
+      ...assignmentBySubsection.value,
+      [subsectionId]: { ...a, attachments: next },
+    };
+  } catch (e) {
+    console.error("deleteAssignmentAttachment error:", e);
+    alert("Ошибка удаления файла");
+  }
+};
 
 const totalSubsections = computed(() => {
   return sections.value.reduce(
@@ -476,16 +781,17 @@ const loadCourse = async () => {
 };
 
 onMounted(async () => {
-  if (authStore.user?.role !== "teacher") {
+  const allowed = ["teacher", "department_head", "admin"];
+  if (!allowed.includes(authStore.user?.role)) {
     router.replace({ name: "CourseView", params: { id: route.params.id } });
     return;
   }
   await loadCourse();
 });
+
 </script>
 
 <style scoped>
-/* можно оставить твои стили, ниже только новые/доп. */
 .course-detail-page {
   min-height: calc(100vh - 200px);
   padding: 2rem;
@@ -581,5 +887,63 @@ onMounted(async () => {
   padding: 0.25rem 0.7rem;
   font-size: 0.8rem;
   cursor: pointer;
+}
+.assignment-box {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.assignment-top {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.assign-btn,
+.assign-save-btn {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid #2f4156;
+  background: #ffffff;
+  color: #2f4156;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.assign-save-btn {
+  border-color: #059669;
+  color: #059669;
+}
+
+.assignment-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.field-textarea,
+.field-input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.field-textarea:focus,
+.field-input:focus {
+  border-color: #2f4156;
 }
 </style>

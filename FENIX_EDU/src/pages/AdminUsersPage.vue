@@ -80,6 +80,9 @@
                                 <button v-if="user.status === 'active'" @click="blockUser(user.id)" class="btn-block">
                                     Заблокировать
                                 </button>
+                                <button v-if="user.status === 'active' && user.role === 'teacher'"@click="promoteToDepartmentHead(user.id)" class="btn-promote">
+                                    Сделать зав. кафедрой 
+                                </button>
                                 <button v-if="user.status === 'blocked'" @click="unblockUser(user.id)"
                                     class="btn-unblock">
                                     Разблокировать
@@ -192,6 +195,16 @@ const blockUser = async (userId) => {
     }
 }
 
+const promoteToDepartmentHead = async (userId) => {
+    try {
+    await authStore.promoteTeacherToDepartmentHead(userId);
+    await loadUsers(); 
+    } catch (error) {
+    console.error("Ошибка повышения до зав. кафедры:", error);
+    }
+};
+
+
 const unblockUser = async (userId) => {
     try {
         await authStore.updateUserStatus(userId, 'active');
@@ -263,6 +276,18 @@ onMounted(() => {
 .admin-users-page {
     max-width: 1200px;
     margin: 0 auto;
+}
+.btn-promote {
+    background: #2d6cdf;
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: 6px;
+}
+.btn-promote:hover {
+    opacity: 0.9;
 }
 
 .page-header {

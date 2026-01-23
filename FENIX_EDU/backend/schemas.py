@@ -20,6 +20,10 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
+class CourseCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    target_group: str
 
 class UserResponse(BaseModel):
     id: int
@@ -54,12 +58,6 @@ class TokenResponse(BaseModel):
     token_type: str
     user: Optional[UserResponse] = None
 
-
-class CourseCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-
-
 class GroupCreate(BaseModel):
     name: str
     course_id: int
@@ -90,7 +88,57 @@ class DiscussionCommentOut(BaseModel):
     created_at: datetime
     replies: List[DiscussionReplyOut] = []
 
-# Добавить в schemas.py:
+from datetime import datetime
+from pydantic import BaseModel, Field
+from typing import Optional, List
+
+class AssignmentCreate(BaseModel):
+    course_id: int
+    subsection_id: int
+    title: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = None
+    deadline: Optional[datetime] = None
+    
+class AssignmentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    deadline: Optional[datetime] = None
+
+class AssignmentOut(BaseModel):
+    id: int
+    course_id: int
+    subsection_id: int
+    title: str
+    description: Optional[str]
+    deadline: Optional[datetime]
+    created_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SubmissionCreate(BaseModel):
+    content: Optional[str] = None
+    file_url: Optional[str] = None
+
+class SubmissionGrade(BaseModel):
+    grade: int = Field(ge=0, le=100)
+    teacher_comment: Optional[str] = None
+
+class SubmissionOut(BaseModel):
+    id: int
+    assignment_id: int
+    student_id: int
+    student_name: str
+    content: Optional[str]
+    file_url: Optional[str]
+    grade: Optional[int]
+    teacher_comment: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class MessageCreate(BaseModel):
     teacher_id: int
@@ -138,3 +186,18 @@ class UnreadCountResponse(BaseModel):
 class TeacherListResponse(BaseModel):
     teachers: List[UserResponse]
     total: int
+
+from pydantic import BaseModel
+from typing import List
+from datetime import datetime
+
+class AssignmentAttachmentOut(BaseModel):
+    id: int
+    assignment_id: int
+    name: str
+    size: int
+    url: str
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True

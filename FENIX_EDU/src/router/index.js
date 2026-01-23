@@ -172,17 +172,18 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
   }
-
-  if (to.meta.requiresTeacher) {
-    if (!isAuthenticated || !user || user.role !== "teacher") {
-      if (to.params.id) {
-        next({ name: "CourseView", params: { id: to.params.id } });
-      } else {
-        next("/dashboard");
-      }
-      return;
+if (to.meta.requiresTeacher) {
+  const allowed = ["teacher", "department_head", "admin"];
+  if (!isAuthenticated || !user || !allowed.includes(user.role)) {
+    if (to.params.id) {
+      next({ name: "CourseView", params: { id: to.params.id } });
+    } else {
+      next("/dashboard");
     }
+    return;
   }
+}
+
 
   next();
 });
