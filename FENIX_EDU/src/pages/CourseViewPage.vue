@@ -74,40 +74,63 @@
                   <div class="subsection-text">
                     <div class="subsection-name">{{ subsection.title }}</div>
                     <div class="subsection-description">
-                    {{ assignmentsMap[subsection.id]?.description || "Материалы и описание задания пока не заполнены." }}
-                  </div>
+                      {{
+                        assignmentsMap[subsection.id]?.description ||
+                        "Материалы и описание задания пока не заполнены."
+                      }}
+                    </div>
                   </div>
                   <span class="subsection-status" :class="subsection.status">
                     {{ statusText(subsection.status) }}
                   </span>
                 </div>
-<!-- материалы задания (из БД) -->
-<div
-  v-if="assignmentsMap[subsection.id]?.attachments?.length"
-  class="subsection-files"
->
-  <div
-    v-for="file in assignmentsMap[subsection.id].attachments"
-    :key="'a-' + file.id"
-    class="file-row"
-  >
-    <button
-      class="file-thumb"
-      v-if="isImage(file.name) && file.url"
-      type="button"
-      @click="openImage(API_BASE + file.url, file.name)"
-    >
-      <img :src="API_BASE + file.url" :alt="file.name" class="thumb-img" />
-    </button>
-    <div class="file-icon" v-else>📎</div>
 
-    <div class="file-info">
-      <div class="file-name">{{ file.name }}</div>
-      <div class="file-meta">{{ formatFileSize(file.size) }}</div>
-    </div>
-  </div>
-</div>
+                <!-- материалы задания (из БД) -->
+                <div
+                  v-if="assignmentsMap[subsection.id]?.attachments?.length"
+                  class="subsection-files"
+                >
+                  <div
+                    v-for="file in assignmentsMap[subsection.id].attachments"
+                    :key="'a-' + file.id"
+                    class="file-row"
+                    role="button"
+                    tabindex="0"
+                    @click="handleFileClick(file)"
+                    @keydown.enter.prevent="handleFileClick(file)"
+                  >
+                    <button
+                      class="file-thumb"
+                      v-if="isImage(file.name) && file.url"
+                      type="button"
+                      @click.stop="openImage(file.url, file.name)"
+                    >
+                      <img
+                        :src="normalizeFileUrl(file.url)"
+                        :alt="file.name"
+                        class="thumb-img"
+                      />
+                    </button>
+                    <div class="file-icon" v-else>📎</div>
 
+                    <div class="file-info">
+                      <div class="file-name">{{ file.name }}</div>
+                      <div class="file-meta">{{ formatFileSize(file.size) }}</div>
+                    </div>
+
+                    <button
+                      v-if="file.url"
+                      class="file-open-btn"
+                      type="button"
+                      @click.stop="handleFileClick(file)"
+                      title="Открыть в новой вкладке"
+                    >
+                      Открыть
+                    </button>
+                  </div>
+                </div>
+
+                <!-- файлы из структуры (если они где-то используются) -->
                 <div
                   v-if="subsection.files && subsection.files.length"
                   class="subsection-files"
@@ -116,15 +139,19 @@
                     v-for="file in subsection.files"
                     :key="file.id"
                     class="file-row"
+                    role="button"
+                    tabindex="0"
+                    @click="handleFileClick(file)"
+                    @keydown.enter.prevent="handleFileClick(file)"
                   >
                     <button
                       class="file-thumb"
                       v-if="isImage(file.name) && file.url"
                       type="button"
-                      @click="openImage(API_BASE + file.url, file.name)"
+                      @click.stop="openImage(file.url, file.name)"
                     >
                       <img
-                        :src="API_BASE + file.url"
+                        :src="normalizeFileUrl(file.url)"
                         :alt="file.name"
                         class="thumb-img"
                       />
@@ -137,6 +164,16 @@
                         {{ formatFileSize(file.size) }}
                       </div>
                     </div>
+
+                    <button
+                      v-if="file.url"
+                      class="file-open-btn"
+                      type="button"
+                      @click.stop="handleFileClick(file)"
+                      title="Открыть в новой вкладке"
+                    >
+                      Открыть
+                    </button>
                   </div>
                 </div>
               </div>
@@ -238,12 +275,15 @@ const loadAssignmentForSubsection = async (courseId, subsectionId) => {
       const a = list[0];
 
       // подгружаем attachments
-      const filesResp = await fetch(`${API_URL}/assignments/${a.id}/attachments`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
+      const filesResp = await fetch(
+        `${API_URL}/assignments/${a.id}/attachments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
 
       let attachments = [];
       if (filesResp.ok) attachments = await filesResp.json();
@@ -321,8 +361,20 @@ const statusText = (status) => {
   }
 };
 
+const normalizeFileUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return url.startsWith("/") ? `${API_BASE}${url}` : `${API_BASE}/${url}`;
+};
+
+const handleFileClick = (file) => {
+  const fullUrl = normalizeFileUrl(file?.url);
+  if (!fullUrl) return;
+  window.open(fullUrl, "_blank", "noopener,noreferrer");
+};
+
 const openImage = (url, name) => {
-  previewImageUrl.value = url;
+  previewImageUrl.value = normalizeFileUrl(url);
   previewImageName.value = name || "";
 };
 
@@ -360,12 +412,13 @@ const loadCourse = async () => {
       const data = await structResp.json();
       sections.value = data.sections || [];
 
-// Подгружаем задания для всех подразделов (после загрузки структуры)
-for (const sec of sections.value) {
-  for (const sub of sec.subsections || []) {
-    await loadAssignmentForSubsection(courseId, sub.id);
-  }
-}
+      // Подгружаем задания для всех подразделов (после загрузки структуры)
+      for (const sec of sections.value) {
+        for (const sub of sec.subsections || []) {
+          await loadAssignmentForSubsection(courseId, sub.id);
+        }
+      }
+
       if (sections.value.length) {
         activeSection.value = sections.value[0].id;
       }
@@ -377,6 +430,7 @@ for (const sec of sections.value) {
     sections.value = [];
   }
 };
+
 onMounted(() => {
   loadCourse();
 });
@@ -722,6 +776,24 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.file-open-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #2f4156;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.file-open-btn:hover {
+  background: #2f4156;
+  color: #ffffff;
+  border-color: #2f4156;
 }
 
 .file-name {
