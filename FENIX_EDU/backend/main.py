@@ -988,7 +988,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 def get_pending_users(
     page: int = 1,
     limit: int = 20,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_department_head),
     db: Session = Depends(get_db),
 ):
     query = db.query(User).filter(User.status == UserStatus.PENDING)
@@ -1007,7 +1007,7 @@ def get_pending_users(
 @app.post("/api/admin/users/{user_id}/approve")
 def approve_user(
     user_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_department_head),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.id == user_id).first()
@@ -1039,7 +1039,7 @@ def approve_user(
 @app.post("/api/admin/users/{user_id}/reject")
 def reject_user(
     user_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_department_head),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.id == user_id).first()
