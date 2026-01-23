@@ -39,10 +39,7 @@
             </div>
 
             <div class="form-group">
-              <div class="label-row">
-                <label for="password" class="form-label">Пароль</label>
-                <a href="#" class="forgot-password">Забыли пароль?</a>
-              </div>
+              <label for="password" class="form-label">Пароль</label>
               <div class="input-group">
                 <input
                   v-model="loginData.password"
@@ -232,7 +229,7 @@ fillDemoCredentials();
 .auth-illustration {
   background: linear-gradient(135deg, #4c51bf 0%, #805ad5 100%);
   color: white;
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -244,62 +241,44 @@ fillDemoCredentials();
 }
 
 .illustration-icon {
-  font-size: 4rem;
-  margin-bottom: 2rem;
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
   display: inline-block;
 }
 
 .illustration-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   line-height: 1.3;
 }
 
 .illustration-text {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin-bottom: 3rem;
-  line-height: 1.6;
-}
-
-.features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  text-align: left;
-}
-
-.feature {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   font-size: 1rem;
-}
-
-.feature-icon {
-  font-size: 1.25rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+  line-height: 1.5;
 }
 
 .auth-form-wrapper {
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
 }
 
 .auth-form {
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   margin: 0 auto;
 }
 
 .form-header {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
 .form-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.5rem;
@@ -307,42 +286,25 @@ fillDemoCredentials();
 
 .form-subtitle {
   color: #718096;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .form-group {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.forgot-password {
-  font-size: 0.875rem;
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.forgot-password:hover {
-  text-decoration: underline;
+  margin-bottom: 0.4rem;
 }
 
 .input-group {
@@ -351,20 +313,12 @@ fillDemoCredentials();
   align-items: center;
 }
 
-.input-icon {
-  position: absolute;
-  left: 1rem;
-  font-size: 1.25rem;
-  color: #a0aec0;
-  z-index: 1;
-}
-
 .form-input {
   width: 100%;
-  padding: 0.875rem 1rem 0.875rem 3rem;
+  padding: 0.75rem 1rem 0.75rem 1rem;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   transition: all 0.3s;
   background: white;
 }
@@ -381,38 +335,42 @@ fillDemoCredentials();
 
 .password-toggle {
   position: absolute;
-  right: 1rem;
+  right: 0.75rem;
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   cursor: pointer;
   color: #a0aec0;
   padding: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .error-message {
   color: #fc8181;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  min-height: 1.2rem;
 }
 
 .remember-me {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin: 0.5rem 0;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
 }
 
 .checkbox {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: 2px solid #e2e8f0;
   border-radius: 4px;
   cursor: pointer;
 }
 
 .checkbox-label {
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #4a5568;
   cursor: pointer;
 }
@@ -421,13 +379,13 @@ fillDemoCredentials();
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  padding: 1rem;
-  border-radius: 10px;
-  font-size: 1rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -455,80 +413,16 @@ fillDemoCredentials();
   }
 }
 
-.social-login {
-  margin: 1.5rem 0;
-  text-align: center;
-}
-
-.social-text {
-  color: #718096;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
-.social-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.social-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.social-btn.google:hover {
-  border-color: #db4437;
-  background: #f8f8f8;
-}
-
-.social-btn.yandex:hover {
-  border-color: #ffcc00;
-  background: #fffbf0;
-}
-
-.social-btn.vk:hover {
-  border-color: #4c75a3;
-  background: #f0f5fa;
-}
-
-.social-icon {
-  font-size: 1.1rem;
-}
-
-.social-btn.google .social-icon {
-  color: #db4437;
-}
-
-.social-btn.yandex .social-icon {
-  color: #ffcc00;
-  font-weight: 700;
-}
-
-.social-btn.vk .social-icon {
-  color: #4c75a3;
-  font-weight: 700;
-}
-
 .auth-footer {
   text-align: center;
-  padding-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid #e2e8f0;
+  margin-top: 0.5rem;
 }
 
 .footer-text {
   color: #718096;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .auth-link {
@@ -549,15 +443,15 @@ fillDemoCredentials();
   }
 
   .auth-illustration {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 
   .auth-form-wrapper {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
   .auth-page {
     padding: 1rem;
   }
@@ -570,16 +464,39 @@ fillDemoCredentials();
     padding: 2rem;
   }
 
-  .social-buttons {
-    flex-direction: column;
-  }
-
   .illustration-title {
     font-size: 1.5rem;
   }
 
   .form-title {
     font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-illustration {
+    padding: 1.5rem;
+  }
+
+  .auth-form-wrapper {
+    padding: 1.5rem;
+  }
+
+  .illustration-title {
+    font-size: 1.3rem;
+  }
+
+  .form-title {
+    font-size: 1.3rem;
+  }
+
+  .illustration-icon {
+    font-size: 3rem;
+  }
+
+  .form-input {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
   }
 }
 </style>

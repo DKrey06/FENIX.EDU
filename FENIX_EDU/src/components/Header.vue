@@ -10,9 +10,13 @@
         </router-link>
       </div>
 
-      <div class="header__search" v-if="!isAuthPage">
+      <div class="header__search" v-if="showSearch">
         <div class="search-box">
-          <input type="text" placeholder="Поиск по курсам..." class="search-input" />
+          <input
+            type="text"
+            placeholder="Поиск по курсам..."
+            class="search-input"
+          />
           <button class="search-btn">
             <span class="search-icon">🔍</span>
           </button>
@@ -20,7 +24,11 @@
       </div>
 
       <div class="header__actions">
-        <button class="notification-btn" v-if="!isAuthPage && isAuthenticated" @click="handleNotificationClick">
+        <button
+          class="notification-btn"
+          v-if="!isAuthPage && isAuthenticated"
+          @click="handleNotificationClick"
+        >
           <span class="notification-icon">🔔</span>
           <span class="notification-badge" v-if="notificationsCount > 0">
             {{ notificationsCount }}
@@ -42,24 +50,40 @@
           </router-link>
         </div>
 
-        <div class="user-logo-container" @click="toggleProfileInfo" v-if="isAuthenticated && !isAuthPage"
-          ref="userLogo">
+        <div
+          class="user-logo-container"
+          @click="toggleProfileInfo"
+          v-if="isAuthenticated && !isAuthPage"
+          ref="userLogo"
+        >
           <img :src="userLogoUrl" alt="User Logo" class="user-logo" />
           <span class="user-logo-badge" v-if="hasNotifications">!</span>
         </div>
 
         <div class="auth-buttons" v-if="!isAuthenticated">
-          <router-link to="/login" class="auth-btn login-btn" :class="{ active: isLoginPage }">
+          <router-link
+            to="/login"
+            class="auth-btn login-btn"
+            :class="{ active: isLoginPage }"
+          >
             <span class="auth-btn__text">Войти</span>
           </router-link>
-          <router-link to="/register" class="auth-btn register-btn" :class="{ active: isRegisterPage }">
+          <router-link
+            to="/register"
+            class="auth-btn register-btn"
+            :class="{ active: isRegisterPage }"
+          >
             <span class="auth-btn__text">Регистрация</span>
           </router-link>
         </div>
 
         <!-- Плашка с информацией о профиле -->
-        <div class="profile-info-panel" v-if="showProfileInfo && isAuthenticated" ref="profilePanel"
-          :style="panelStyle">
+        <div
+          class="profile-info-panel"
+          v-if="showProfileInfo && isAuthenticated"
+          ref="profilePanel"
+          :style="panelStyle"
+        >
           <div class="profile-info-header">
             <div class="profile-avatar">
               <div class="avatar-initials">{{ userInitials }}</div>
@@ -96,30 +120,9 @@
                 </div>
               </div>
             </div>
-
-            <div class="info-section">
-              <h4 class="section-title">Статистика</h4>
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <div class="stat-value">{{ coursesCount }}</div>
-                  <div class="stat-label">Курсов</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">{{ inProgressCount }}</div>
-                  <div class="stat-label">В процессе</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">{{ progressPercentage }}%</div>
-                  <div class="stat-label">Прогресс</div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="profile-info-footer">
-            <router-link to="/profile" class="profile-link">
-              <span class="link-text">Мой профиль</span>
-            </router-link>
             <button class="btn btn-logout" @click="handleLogout">
               <span class="btn-text">Выйти</span>
             </button>
@@ -156,6 +159,23 @@ const userLogoUrl = userLogoCat;
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 const isAdmin = computed(() => authStore.isAdmin);
+
+// Определяем страницы, где должен отображаться поиск
+const showSearch = computed(() => {
+  const currentPath = route.path;
+  const searchPages = [
+    "/", // Главная страница
+    "/dashboard", // Дашборд (если там список курсов)
+    "/learning-archive", // Архив обучения
+    "/archive", // Архив (альтернативное название)
+  ];
+
+  return (
+    !isAuthPage.value &&
+    isAuthenticated.value &&
+    searchPages.includes(currentPath)
+  );
+});
 
 // Компьютед свойства для пользователя
 const userName = computed(() => {
@@ -199,15 +219,11 @@ const userStatus = computed(() => {
   return statuses[user.value?.status] || "Активный";
 });
 
-// Статистика (можно вынести в отдельный store или получать с API)
-const coursesCount = ref(8);
-const inProgressCount = ref(4);
-const progressPercentage = ref(75);
-
 const hasNotifications = computed(() => notificationsCount.value > 0);
 
 const isAuthPage = computed(() => {
-  return route.path === "/login" || route.path === "/register";
+  const authPages = ["/login", "/register", "/", "/waiting"];
+  return authPages.includes(route.path);
 });
 
 const isLoginPage = computed(() => {
@@ -238,7 +254,7 @@ watch(
       loadNotifications();
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 let notificationInterval;
@@ -259,7 +275,6 @@ onMounted(() => {
     }
   }, 30000);
 });
-
 
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
@@ -297,6 +312,16 @@ const handleLogout = async () => {
     }
   } catch (error) {
     console.error("Ошибка выхода:", error);
+  }
+};
+
+const loadNotifications = async () => {
+  if (isAuthenticated.value) {
+    try {
+      await messengerStore.fetchConversations();
+    } catch (error) {
+      console.error("Ошибка загрузки уведомлений:", error);
+    }
   }
 };
 </script>
@@ -356,6 +381,7 @@ const handleLogout = async () => {
 .header__search {
   flex: 1;
   max-width: 400px;
+  transition: opacity 0.3s ease;
 }
 
 .search-box {
@@ -597,11 +623,11 @@ const handleLogout = async () => {
 .profile-info-panel {
   position: absolute;
   right: 0;
-  width: 350px;
+  width: 320px; /* Слегка уменьшил ширину */
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  padding: 1.5rem;
+  padding: 1.25rem; /* Уменьшил padding */
   z-index: 1001;
   border: 1px solid rgba(212, 185, 187, 0.3);
   animation: slideDown 0.3s ease-out;
@@ -622,16 +648,16 @@ const handleLogout = async () => {
 .profile-info-header {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
+  padding-bottom: 0.75rem; /* Уменьшил отступ */
   border-bottom: 1px solid #e7e7ec;
   position: relative;
 }
 
 .profile-avatar {
-  width: 60px;
-  height: 60px;
-  margin-right: 1rem;
+  width: 50px; /* Уменьшил размер */
+  height: 50px;
+  margin-right: 0.75rem; /* Уменьшил отступ */
   flex-shrink: 0;
 }
 
@@ -645,35 +671,46 @@ const handleLogout = async () => {
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 1.25rem;
-  border: 3px solid #f0c3d1;
+  font-size: 1rem; /* Уменьшил размер шрифта */
+  border: 2px solid #f0c3d1; /* Уменьшил толщину рамки */
 }
 
 .profile-main-info {
   flex: 1;
+  min-width: 0; /* Чтобы текст не вылезал */
 }
 
 .profile-name {
-  font-size: 1.25rem;
+  font-size: 1rem; /* Уменьшил размер */
   color: #2f4156;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.2rem 0; /* Уменьшил отступ */
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-role {
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Уменьшил размер */
   color: #667eea;
   font-weight: 500;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem; /* Уменьшил отступ */
   background: rgba(102, 126, 234, 0.1);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.4rem; /* Уменьшил padding */
   border-radius: 4px;
   display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .profile-email {
-  font-size: 0.85rem;
+  font-size: 0.75rem; /* Уменьшил размер */
   color: #718096;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .close-btn {
@@ -682,12 +719,12 @@ const handleLogout = async () => {
   right: 0;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem; /* Уменьшил размер */
   color: #a0aec0;
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 25px; /* Уменьшил размер */
+  height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -701,18 +738,18 @@ const handleLogout = async () => {
 }
 
 .profile-info-content {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
 }
 
 .info-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
 }
 
 .section-title {
-  font-size: 0.95rem;
+  font-size: 0.85rem; /* Уменьшил размер */
   color: #4a5568;
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem; /* Уменьшил отступ */
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -720,28 +757,34 @@ const handleLogout = async () => {
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.5rem; /* Уменьшил gap */
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
+  padding: 0.5rem; /* Уменьшил padding */
   background: rgba(200, 218, 232, 0.1);
-  border-radius: 8px;
+  border-radius: 6px; /* Уменьшил радиус */
   border: 1px solid rgba(200, 218, 232, 0.2);
 }
 
 .info-label {
   font-weight: 600;
   color: #2f4156;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+  font-size: 0.7rem; /* Уменьшил размер */
+  margin-bottom: 0.15rem; /* Уменьшил отступ */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .info-value {
   color: #4a5568;
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Уменьшил размер */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .info-value.status-active {
@@ -749,66 +792,9 @@ const handleLogout = async () => {
   font-weight: 500;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  text-align: center;
-}
-
-.stat-item {
-  padding: 0.75rem;
-  background: linear-gradient(135deg,
-      rgba(240, 195, 209, 0.2) 0%,
-      rgba(200, 218, 232, 0.2) 100%);
-  border-radius: 8px;
-  border: 1px solid rgba(212, 185, 187, 0.3);
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #2f4156;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.8rem;
-  color: #718096;
-}
-
 .profile-info-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
+  padding-top: 0.75rem; /* Уменьшил отступ */
   border-top: 1px solid #e7e7ec;
-}
-
-.profile-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(200, 218, 232, 0.2);
-  border-radius: 8px;
-  text-decoration: none;
-  color: #2f4156;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.profile-link:hover {
-  background: rgba(200, 218, 232, 0.4);
-  transform: translateX(5px);
-}
-
-.link-icon {
-  font-size: 1.1rem;
-}
-
-.link-text {
-  font-size: 0.95rem;
 }
 
 .btn-logout {
@@ -816,16 +802,16 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 0.5rem; /* Уменьшил gap */
+  padding: 0.6rem; /* Уменьшил padding */
   background: #f0c3d1;
   color: #2f4156;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px; /* Уменьшил радиус */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* Уменьшил размер */
 }
 
 .btn-logout:hover {
@@ -834,12 +820,8 @@ const handleLogout = async () => {
   box-shadow: 0 4px 12px rgba(211, 165, 177, 0.3);
 }
 
-.btn-icon {
-  font-size: 1.1rem;
-}
-
 .btn-text {
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* Уменьшил размер */
 }
 
 /* Адаптивность */
@@ -899,6 +881,24 @@ const handleLogout = async () => {
   .profile-info-panel {
     width: 280px;
     right: -20px;
+    padding: 1rem;
+  }
+
+  .profile-avatar {
+    width: 45px;
+    height: 45px;
+  }
+
+  .profile-name {
+    font-size: 0.9rem;
+  }
+
+  .profile-role {
+    font-size: 0.75rem;
+  }
+
+  .profile-email {
+    font-size: 0.7rem;
   }
 }
 
@@ -926,6 +926,12 @@ const handleLogout = async () => {
 
   .user-info-display {
     display: none;
+  }
+
+  .profile-info-panel {
+    width: 250px;
+    right: -10px;
+    padding: 0.75rem;
   }
 }
 </style>

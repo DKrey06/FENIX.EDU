@@ -102,84 +102,131 @@
                     {{ subsection.statusIcon }}
                   </div>
                 </div>
-<!-- ----- ASSIGNMENT (DB) ----- -->
-<div class="assignment-box">
-  <div class="assignment-top">
-    <button
-      class="assign-btn"
-      type="button"
-      @click="async () => { await ensureAssignment(subsection.id, subsection.title); await loadAssignmentAttachments(subsection.id); }"
-      :disabled="assignmentLoading[subsection.id]"
-    >
-      {{ assignmentBySubsection[subsection.id]?.id ? "Открыть задание" : "Создать задание" }}
-      <span v-if="assignmentLoading[subsection.id]">⏳</span>
-    </button>
+                <!-- ----- ASSIGNMENT (DB) ----- -->
+                <div class="assignment-box">
+                  <div class="assignment-top">
+                    <button
+                      class="assign-btn"
+                      type="button"
+                      @click="
+                        async () => {
+                          await ensureAssignment(
+                            subsection.id,
+                            subsection.title,
+                          );
+                          await loadAssignmentAttachments(subsection.id);
+                        }
+                      "
+                      :disabled="assignmentLoading[subsection.id]"
+                    >
+                      {{
+                        assignmentBySubsection[subsection.id]?.id
+                          ? "Открыть задание"
+                          : "Создать задание"
+                      }}
+                      <span v-if="assignmentLoading[subsection.id]">⏳</span>
+                    </button>
 
-    <button
-      v-if="assignmentBySubsection[subsection.id]?.id"
-      class="assign-save-btn"
-      type="button"
-      @click="saveAssignmentFields(subsection.id)"
-      :disabled="assignmentSaving[subsection.id]"
-    >
-      Сохранить поля
-      <span v-if="assignmentSaving[subsection.id]">⏳</span>
-    </button>
-  </div>
+                    <button
+                      v-if="assignmentBySubsection[subsection.id]?.id"
+                      class="assign-save-btn"
+                      type="button"
+                      @click="saveAssignmentFields(subsection.id)"
+                      :disabled="assignmentSaving[subsection.id]"
+                    >
+                      Сохранить поля
+                      <span v-if="assignmentSaving[subsection.id]">⏳</span>
+                    </button>
+                  </div>
 
-  <div v-if="assignmentBySubsection[subsection.id]?.id" class="assignment-fields">
-    <label class="field-label">Описание задания</label>
-    <textarea
-      class="field-textarea"
-      v-model="assignmentBySubsection[subsection.id].description"
-      placeholder="Текст задания, требования, критерии..."
-      rows="4"
-    ></textarea>
+                  <div
+                    v-if="assignmentBySubsection[subsection.id]?.id"
+                    class="assignment-fields"
+                  >
+                    <label class="field-label">Описание задания</label>
+                    <textarea
+                      class="field-textarea"
+                      v-model="
+                        assignmentBySubsection[subsection.id].description
+                      "
+                      placeholder="Текст задания, требования, критерии..."
+                      rows="4"
+                    ></textarea>
 
-    <label class="field-label">Дедлайн</label>
-    <input
-      class="field-input"
-      type="datetime-local"
-      v-model="assignmentBySubsection[subsection.id].deadline"
-    />
+                    <label class="field-label">Дедлайн</label>
+                    <input
+                      class="field-input"
+                      type="datetime-local"
+                      v-model="assignmentBySubsection[subsection.id].deadline"
+                    />
 
-    <div class="file-upload">
-      <label class="file-upload-btn" :for="'assign-file-' + subsection.id">
-        {{ attachmentUploading[subsection.id] ? "Загрузка..." : "Прикрепить материалы к заданию" }}
-      </label>
-      <input
-        :id="'assign-file-' + subsection.id"
-        type="file"
-        class="file-input"
-        @change="uploadAssignmentAttachments($event, subsection.id)"
-        multiple
-        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar"
-      />
-    </div>
+                    <div class="file-upload">
+                      <label
+                        class="file-upload-btn"
+                        :for="'assign-file-' + subsection.id"
+                      >
+                        {{
+                          attachmentUploading[subsection.id]
+                            ? "Загрузка..."
+                            : "Прикрепить материалы к заданию"
+                        }}
+                      </label>
+                      <input
+                        :id="'assign-file-' + subsection.id"
+                        type="file"
+                        class="file-input"
+                        @change="
+                          uploadAssignmentAttachments($event, subsection.id)
+                        "
+                        multiple
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar"
+                      />
+                    </div>
 
-    <div v-if="assignmentBySubsection[subsection.id]?.attachments?.length" class="files-list">
-      <div
-        v-for="file in assignmentBySubsection[subsection.id].attachments"
-        :key="file.id"
-        class="file-item"
-      >
-        <div class="file-thumb" v-if="isImage(file.name) && file.url">
-          <img :src="API_BASE + file.url" :alt="file.name" class="thumb-img" />
-        </div>
-        <span class="file-icon" v-else>FILE</span>
+                    <div
+                      v-if="
+                        assignmentBySubsection[subsection.id]?.attachments
+                          ?.length
+                      "
+                      class="files-list"
+                    >
+                      <div
+                        v-for="file in assignmentBySubsection[subsection.id]
+                          .attachments"
+                        :key="file.id"
+                        class="file-item"
+                      >
+                        <div
+                          class="file-thumb"
+                          v-if="isImage(file.name) && file.url"
+                        >
+                          <img
+                            :src="API_BASE + file.url"
+                            :alt="file.name"
+                            class="thumb-img"
+                          />
+                        </div>
+                        <span class="file-icon" v-else>FILE</span>
 
-        <div class="file-main">
-          <span class="file-name">{{ file.name }}</span>
-          <span class="file-size">{{ formatFileSize(file.size) }}</span>
-        </div>
+                        <div class="file-main">
+                          <span class="file-name">{{ file.name }}</span>
+                          <span class="file-size">{{
+                            formatFileSize(file.size)
+                          }}</span>
+                        </div>
 
-        <button class="file-delete-btn" @click="deleteAssignmentAttachment(subsection.id, file.id)">
-          Удалить
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+                        <button
+                          class="file-delete-btn"
+                          @click="
+                            deleteAssignmentAttachment(subsection.id, file.id)
+                          "
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div class="file-upload">
                   <label class="file-upload-btn" :for="'file-' + subsection.id">
                     Прикрепить файлы
@@ -251,28 +298,24 @@
           <div class="stats-title">Статистика курса</div>
           <div class="stats-grid">
             <div class="stat-item">
-              <div class="stat-icon">%</div>
               <div class="stat-content">
                 <div class="stat-value">{{ currentCourse.progress || 0 }}%</div>
                 <div class="stat-label">Прогресс курса</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">R</div>
               <div class="stat-content">
                 <div class="stat-value">{{ sections.length }}</div>
                 <div class="stat-label">Разделов</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">T</div>
               <div class="stat-content">
                 <div class="stat-value">{{ totalSubsections }}</div>
                 <div class="stat-label">Заданий</div>
               </div>
             </div>
             <div class="stat-item">
-              <div class="stat-icon">F</div>
               <div class="stat-content">
                 <div class="stat-value">{{ totalFiles }}</div>
                 <div class="stat-label">Файлов</div>
@@ -309,7 +352,6 @@ const assignmentLoading = ref({}); // { [subsectionId]: true/false }
 const assignmentSaving = ref({}); // { [subsectionId]: true/false }
 const attachmentUploading = ref({}); // { [subsectionId]: true/false }
 
-
 const setFlag = (objRef, key, val) => {
   objRef.value = { ...objRef.value, [key]: val };
 };
@@ -327,7 +369,7 @@ const ensureAssignment = async (subsectionId, titleFallback) => {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (listResp.ok) {
@@ -509,7 +551,7 @@ const deleteAssignmentAttachment = async (subsectionId, attachmentId) => {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (!resp.ok) {
@@ -533,7 +575,7 @@ const deleteAssignmentAttachment = async (subsectionId, attachmentId) => {
 const totalSubsections = computed(() => {
   return sections.value.reduce(
     (total, section) => total + (section.subsections?.length || 0),
-    0
+    0,
   );
 });
 
@@ -543,7 +585,7 @@ const totalFiles = computed(() => {
       total +
       section.subsections.reduce(
         (acc, sub) => acc + (sub.files?.length || 0),
-        0
+        0,
       )
     );
   }, 0);
@@ -593,7 +635,7 @@ const handleFileUpload = async (event, subsectionId) => {
           Authorization: token ? `Bearer ${token}` : "",
         },
         body: formData,
-      }
+      },
     );
 
     if (!response.ok) {
@@ -606,10 +648,10 @@ const handleFileUpload = async (event, subsectionId) => {
     const uploadedFiles = await response.json();
 
     const sectionIndex = sections.value.findIndex((s) =>
-      s.subsections.some((sub) => sub.id === subsectionId)
+      s.subsections.some((sub) => sub.id === subsectionId),
     );
     const subsectionIndex = sections.value[sectionIndex].subsections.findIndex(
-      (s) => s.id === subsectionId
+      (s) => s.id === subsectionId,
     );
 
     if (sectionIndex !== -1 && subsectionIndex !== -1) {
@@ -639,7 +681,7 @@ const deleteFile = async (subsectionId, fileId) => {
           Authorization: token ? `Bearer ${token}` : "",
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -650,10 +692,10 @@ const deleteFile = async (subsectionId, fileId) => {
     }
 
     const sectionIndex = sections.value.findIndex((s) =>
-      s.subsections.some((sub) => sub.id === subsectionId)
+      s.subsections.some((sub) => sub.id === subsectionId),
     );
     const subsectionIndex = sections.value[sectionIndex].subsections.findIndex(
-      (s) => s.id === subsectionId
+      (s) => s.id === subsectionId,
     );
     const fileIndex = sections.value[sectionIndex].subsections[
       subsectionIndex
@@ -662,7 +704,7 @@ const deleteFile = async (subsectionId, fileId) => {
     if (fileIndex !== -1) {
       sections.value[sectionIndex].subsections[subsectionIndex].files.splice(
         fileIndex,
-        1
+        1,
       );
     }
   } catch (e) {
@@ -788,35 +830,190 @@ onMounted(async () => {
   }
   await loadCourse();
 });
-
 </script>
 
 <style scoped>
 .course-detail-page {
   min-height: calc(100vh - 200px);
   padding: 2rem;
+  background: linear-gradient(135deg, #f6fbff 0%, #f0f7ff 100%);
+}
+
+/* шапка курса */
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.breadcrumb {
+  margin-bottom: 1rem;
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #2f4156;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(47, 65, 86, 0.08);
+  transition: all 0.2s ease;
+}
+
+.breadcrumb-link:hover {
   background: #f6fbff;
+  border-color: #2f4156;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.12);
+}
+
+.breadcrumb-icon {
+  font-size: 1.1rem;
+}
+
+.header-content {
+  background: #ffffff;
+  padding: 1.25rem 1.75rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+  max-width: 800px;
+  width: 100%;
+  flex: 1;
+}
+
+.course-title {
+  font-size: 1.6rem;
+  color: #2f4156;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.course-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  background: #f8fafc;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  border: 1px solid #e2e8f0;
+}
+
+.meta-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.dot-progress {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.dot-done {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.meta-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.meta-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.meta-text {
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* основной контент */
+.course-content {
+  display: grid;
+  grid-template-columns: 3fr 1.4fr;
+  gap: 2rem;
+}
+
+/* левая колонка — разделы */
+.course-sections {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+}
+
+.sections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+}
+
+.sections-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin: 0;
+}
+
+.edit-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .save-btn,
 .cancel-btn {
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.45rem 1.1rem;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .save-btn {
-  background: #059669;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
   color: #ffffff;
-  margin-right: 0.5rem;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .save-btn:disabled {
   background: #9ca3af;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .cancel-btn {
@@ -824,95 +1021,196 @@ onMounted(async () => {
   color: #374151;
 }
 
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: 6px;
-  background: #f9fafb;
+.cancel-btn:hover {
+  background: #d1d5db;
+  transform: translateY(-1px);
 }
 
-.file-thumb {
-  width: 64px;
-  height: 48px;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.thumb-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.file-icon {
-  width: 40px;
-  height: 32px;
-  border-radius: 6px;
-  background: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.file-main {
-  flex: 1;
+.sections-list {
   display: flex;
   flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
 }
 
-.file-name {
-  font-size: 0.9rem;
-  color: #111827;
+.section-item {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: #f9fbff;
+  transition: all 0.2s ease;
 }
 
-.file-size {
-  font-size: 0.8rem;
-  color: #6b7280;
+.section-item.section-active {
+  border-color: #667eea;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.14);
+  background: #f8fbff;
 }
 
-.file-delete-btn {
-  background: #f87171;
-  color: white;
-  border: none;
-  border-radius: 999px;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.8rem;
+.section-header {
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
-.assignment-box {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 10px;
+
+.section-header:hover {
+  background: #f0f7ff;
+}
+
+.section-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.section-number {
+  font-weight: 600;
+  color: #2f4156;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.section-number-input {
+  width: 50px;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.section-name {
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.section-title-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+  min-width: 200px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.section-toggle {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 500;
+}
+
+/* задания */
+.subsection-list {
+  padding: 0.7rem 1.1rem 0.9rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.subsection-item.editable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border-radius: 12px;
   background: #ffffff;
+  transition: all 0.2s ease;
+  border: 1px solid #e7f0ff;
+}
+
+.subsection-item.editable:hover {
+  background: #f8fafc;
+  transform: translateX(3px);
+  border-color: #cbd5e1;
+}
+
+.subsection-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.subsection-icon {
+  font-size: 1.1rem;
+}
+
+.subsection-name-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.subsection-status {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-self: center;
+  border: 1px solid transparent;
+}
+
+.status-pending {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+/* Assignment Box */
+.assignment-box {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
   border: 1px solid #e5e7eb;
 }
 
 .assignment-top {
   display: flex;
-  gap: 10px;
+  gap: 0.75rem;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 1rem;
 }
 
 .assign-btn,
 .assign-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border-radius: 999px;
-  padding: 0.35rem 0.9rem;
+  padding: 0.4rem 1rem;
   border: 1px solid #2f4156;
   background: #ffffff;
   color: #2f4156;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.assign-btn:hover:not(:disabled) {
+  background: #2f4156;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.assign-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .assign-save-btn {
@@ -920,10 +1218,22 @@ onMounted(async () => {
   color: #059669;
 }
 
+.assign-save-btn:hover:not(:disabled) {
+  background: #059669;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.assign-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Поля задания */
 .assignment-fields {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
 .field-label {
@@ -937,13 +1247,353 @@ onMounted(async () => {
   width: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 0.6rem 0.7rem;
+  padding: 0.75rem;
   font-size: 0.9rem;
   outline: none;
+  transition: border-color 0.2s ease;
+  background: white;
 }
 
 .field-textarea:focus,
 .field-input:focus {
   border-color: #2f4156;
+  box-shadow: 0 0 0 3px rgba(47, 65, 86, 0.1);
+}
+
+.field-textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+/* Загрузка файлов */
+.file-upload {
+  margin-top: 0.5rem;
+}
+
+.file-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-upload-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.file-input {
+  display: none;
+}
+
+/* Список файлов */
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.file-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-icon {
+  width: 48px;
+  height: 36px;
+  border-radius: 8px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.file-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  color: #111827;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.file-delete-btn {
+  background: #f87171;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-delete-btn:hover {
+  background: #ef4444;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+/* Кнопки добавления */
+.add-subsection-btn,
+.add-section-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px dashed #cbd5e1;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-subsection-btn {
+  margin-top: 0.5rem;
+}
+
+.add-section-btn {
+  margin-top: 1rem;
+}
+
+.add-subsection-btn:hover,
+.add-section-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+/* правая колонка — статистика */
+.course-stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.course-stats {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+}
+
+.stats-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.stat-item {
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f6fbff 0%, #e8f2ff 100%);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2f4156;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.stat-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+}
+
+/* адаптив */
+@media (max-width: 992px) {
+  .course-content {
+    grid-template-columns: 1fr;
+  }
+
+  .course-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .header-content {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .course-detail-page {
+    padding: 1.25rem;
+  }
+
+  .course-title {
+    font-size: 1.4rem;
+  }
+
+  .sections-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .edit-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .subsection-left {
+    flex-wrap: wrap;
+  }
+
+  .subsection-name-input {
+    min-width: 150px;
+    max-width: 100%;
+  }
+
+  .assignment-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .assign-btn,
+  .assign-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .file-item {
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .course-detail-page {
+    padding: 1rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .section-toggle {
+    align-self: flex-end;
+  }
+
+  .save-btn,
+  .cancel-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .edit-controls {
+    flex-direction: column;
+    width: 100%;
+  }
 }
 </style>

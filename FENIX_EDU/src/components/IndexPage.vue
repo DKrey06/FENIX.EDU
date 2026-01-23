@@ -10,22 +10,40 @@
           <div class="sidebar-section">
             <h3 class="section-title">Меню</h3>
             <nav class="navigation-menu">
-              <router-link to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
+              <router-link
+                to="/dashboard"
+                class="nav-item"
+                :class="{ active: $route.path === '/dashboard' }"
+              >
                 <span class="nav-text">Главная</span>
               </router-link>
-              <router-link to="/archive" class="nav-item" :class="{ active: $route.path === '/archive' }">
+              <router-link
+                to="/archive"
+                class="nav-item"
+                :class="{ active: $route.path === '/archive' }"
+              >
                 <span class="nav-text">Архив обучения</span>
               </router-link>
-              <router-link to="/messages" class="nav-item" :class="{ active: $route.path === '/messages' }">
+              <router-link
+                to="/messages"
+                class="nav-item"
+                :class="{ active: $route.path === '/messages' }"
+              >
                 <span class="nav-text">Мессенджер</span>
               </router-link>
-              <router-link to="/discussions" class="nav-item" :class="{ active: $route.path === '/discussions' }">
+              <router-link
+                to="/discussions"
+                class="nav-item"
+                :class="{ active: $route.path === '/discussions' }"
+              >
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link to="/courses" class="nav-item" :class="{ active: $route.path === '/courses' }">
-                <span class="nav-text">Курсы</span>
-              </router-link>
-              <div v-if="user?.role === 'admin' || user?.role === 'department_head'" class="admin-link">
+              <div
+                v-if="
+                  user?.role === 'admin' || user?.role === 'department_head'
+                "
+                class="admin-link"
+              >
                 <router-link to="/admin" class="nav-item">
                   <span class="nav-text">Админ-панель</span>
                 </router-link>
@@ -34,7 +52,11 @@
           </div>
 
           <div class="sidebar-section">
-            <button v-if="isAuthenticated" class="logout-btn" @click="handleLogout">
+            <button
+              v-if="isAuthenticated"
+              class="logout-btn"
+              @click="handleLogout"
+            >
               <span class="logout-text">Выход</span>
             </button>
 
@@ -57,12 +79,18 @@
               <h2 class="content-title">Дисциплины</h2>
               <div class="courses-controls">
                 <div class="status-buttons">
-                  <button class="status-btn" :class="{ active: activeStatus === 'inProgress' }"
-                    @click="setActiveStatus('inProgress')">
+                  <button
+                    class="status-btn"
+                    :class="{ active: activeStatus === 'inProgress' }"
+                    @click="setActiveStatus('inProgress')"
+                  >
                     В процессе
                   </button>
-                  <button class="status-btn" :class="{ active: activeStatus === 'completed' }"
-                    @click="setActiveStatus('completed')">
+                  <button
+                    class="status-btn"
+                    :class="{ active: activeStatus === 'completed' }"
+                    @click="setActiveStatus('completed')"
+                  >
                     Завершенные
                   </button>
                 </div>
@@ -72,10 +100,21 @@
                   </button>
                   <div class="filter-dropdown" v-if="showFilter">
                     <div class="filter-options">
-                      <div class="filter-option" v-for="filter in filters" :key="filter.id">
-                        <input type="checkbox" :id="'filter-' + filter.id" v-model="filter.selected"
-                          class="filter-checkbox" />
-                        <label :for="'filter-' + filter.id" class="filter-label">
+                      <div
+                        class="filter-option"
+                        v-for="filter in filters"
+                        :key="filter.id"
+                      >
+                        <input
+                          type="checkbox"
+                          :id="'filter-' + filter.id"
+                          v-model="filter.selected"
+                          class="filter-checkbox"
+                        />
+                        <label
+                          :for="'filter-' + filter.id"
+                          class="filter-label"
+                        >
                           <span class="filter-icon">{{
                             getFilterIcon(filter.name)
                           }}</span>
@@ -91,10 +130,18 @@
             <div class="courses-container">
               <div class="courses-wrapper">
                 <div class="courses-grid">
-                  <div v-for="course in filteredCourses" :key="course.id" class="course-card"
-                    @click="openCourse(course.id)">
+                  <div
+                    v-for="course in filteredCourses"
+                    :key="course.id"
+                    class="course-card"
+                    @click="openCourse(course.id)"
+                  >
                     <div class="course-image">
-                      <img src="@/assets/images/Course.png" alt="Course" class="course-img" />
+                      <img
+                        src="@/assets/images/Course.png"
+                        alt="Course"
+                        class="course-img"
+                      />
                     </div>
                     <div class="course-header">
                       <span class="course-status" :class="course.status">
@@ -108,11 +155,19 @@
                     <div class="course-body">
                       <h3 class="course-title">{{ course.title }}</h3>
                       <p class="course-description">{{ course.description }}</p>
-                      <div class="course-progress" v-if="course.status === 'inProgress'">
+                      <div
+                        class="course-progress"
+                        v-if="course.status === 'inProgress'"
+                      >
                         <div class="progress-bar">
-                          <div class="progress-fill" :style="{ width: course.progress + '%' }"></div>
+                          <div
+                            class="progress-fill"
+                            :style="{ width: course.progress + '%' }"
+                          ></div>
                         </div>
-                        <span class="progress-text">{{ course.progress }}%</span>
+                        <span class="progress-text"
+                          >{{ course.progress }}%</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -144,7 +199,10 @@
               </div>
 
               <!-- Если чатов нет -->
-              <div v-else-if="chats.length === 0 && isAuthenticated" class="no-chats">
+              <div
+                v-else-if="chats.length === 0 && isAuthenticated"
+                class="no-chats"
+              >
                 <div class="no-chats-icon">💬</div>
                 <div class="no-chats-text">Нет активных чатов</div>
                 <router-link to="/messages" class="start-chat-btn">
@@ -164,36 +222,51 @@
               <!-- Список чатов -->
               <!-- Список чатов -->
               <div v-else class="chats-list">
-                <router-link v-for="chat in chats" :key="chat.id"
-                  :to="{ path: '/messages', query: { thread: chat.id } }" class="chat-item-link">
-                  <div class="chat-item" :class="{ unread: chat.unread_count > 0 }">
+                <router-link
+                  v-for="chat in chats"
+                  :key="chat.id"
+                  :to="{ path: '/messages', query: { thread: chat.id } }"
+                  class="chat-item-link"
+                >
+                  <div
+                    class="chat-item"
+                    :class="{ unread: chat.unread_count > 0 }"
+                  >
                     <div class="chat-avatar">{{ chat.teacher_avatar }}</div>
                     <div class="chat-info">
                       <div class="chat-name">{{ chat.teacher_name }}</div>
                       <div class="chat-preview">{{ chat.last_message }}</div>
                     </div>
                     <div class="chat-meta">
-                      <span class="chat-time">{{ formatMessageTime(chat.last_message_at) }}</span>
+                      <span class="chat-time">{{
+                        formatMessageTime(chat.last_message_at)
+                      }}</span>
                       <span class="unread-badge" v-if="chat.unread_count > 0">
-                        {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+                        {{ chat.unread_count > 9 ? "9+" : chat.unread_count }}
                       </span>
                     </div>
                   </div>
                 </router-link>
               </div>
-
             </div>
 
             <div class="info-card discussions-card">
               <h3 class="info-title">Обсуждения</h3>
 
               <div class="discussions-list">
-                <router-link v-for="course in discussionCourses" :key="course.id"
-                  class="discussion-item discussion-link" :to="{ name: 'CourseView', params: { id: course.id } }">
+                <router-link
+                  v-for="course in discussionCourses"
+                  :key="course.id"
+                  class="discussion-item discussion-link"
+                  :to="{ name: 'CourseView', params: { id: course.id } }"
+                >
                   <div class="discussion-name">{{ course.title }}</div>
                 </router-link>
 
-                <div v-if="discussionCourses.length === 0" class="discussion-item">
+                <div
+                  v-if="discussionCourses.length === 0"
+                  class="discussion-item"
+                >
                   <div class="discussion-name">Нет доступных обсуждений</div>
                 </div>
               </div>
@@ -266,7 +339,9 @@ const discussionCourses = computed(() => courses.value);
 
 // Фильтрованные курсы
 const filteredCourses = computed(() => {
-  let result = courses.value.filter((course) => course.status === activeStatus.value);
+  let result = courses.value.filter(
+    (course) => course.status === activeStatus.value,
+  );
 
   const selectedFilters = filters.value
     .filter((f) => f.selected)
@@ -335,12 +410,12 @@ const handleLogout = async () => {
 // Функция для перехода к конкретному чату
 // Функция для перехода к конкретному чату
 const goToChat = () => {
-  router.push({ name: 'messages' });
+  router.push({ name: "messages" });
 };
 // Функция для получения инициалов аватара
 const getAvatarInitials = (name) => {
-  if (!name) return '👤';
-  const parts = name.split(' ');
+  if (!name) return "👤";
+  const parts = name.split(" ");
   if (parts.length >= 2) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -349,40 +424,42 @@ const getAvatarInitials = (name) => {
 
 // Функция для форматирования времени
 const formatMessageTime = (dateString) => {
-  if (!dateString) return '';
+  if (!dateString) return "";
 
   try {
     const date = new Date(dateString);
     const now = new Date();
 
     // Если дата некорректна
-    if (isNaN(date.getTime())) return '';
+    if (isNaN(date.getTime())) return "";
 
     // Если сегодня
     if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
 
     // Если вчера
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
-      return 'Вчера';
+      return "Вчера";
     }
 
     // Если в течение недели
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     if (date > weekAgo) {
-      const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const days = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
       return days[date.getDay()];
     }
 
     // Если давно
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-
+    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
   } catch (e) {
-    return '';
+    return "";
   }
 };
 
@@ -395,7 +472,9 @@ async function loadChats() {
 
   try {
     const token =
-      localStorage.getItem("access_token") || localStorage.getItem("token") || "";
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("token") ||
+      "";
 
     // Используем правильный путь /api/messenger/threads (а не /api/messages/threads)
     const res = await fetch(`${API_URL}/messenger/threads`, {
@@ -428,36 +507,43 @@ async function loadChats() {
 
     // Мапим в нужный формат
     // В loadChats обновите получение данных
-    chats.value = threadsArray.map((thread) => {
-      // Используем partner_name и partner_avatar вместо teacher_name и teacher_avatar
-      let teacherName = thread.partner_name || thread.teacher_name || "Собеседник";
-      let teacherAvatar = thread.partner_avatar || thread.teacher_avatar || getAvatarInitials(teacherName);
+    chats.value = threadsArray
+      .map((thread) => {
+        // Используем partner_name и partner_avatar вместо teacher_name и teacher_avatar
+        let teacherName =
+          thread.partner_name || thread.teacher_name || "Собеседник";
+        let teacherAvatar =
+          thread.partner_avatar ||
+          thread.teacher_avatar ||
+          getAvatarInitials(teacherName);
 
-      // Определяем последнее сообщение
-      let lastMessage = "Нет сообщений";
-      let lastMessageTime = thread.last_message_at;
+        // Определяем последнее сообщение
+        let lastMessage = "Нет сообщений";
+        let lastMessageTime = thread.last_message_at;
 
-      if (thread.last_message) {
-        const msg = thread.last_message;
-        lastMessage = msg.content || lastMessage;
-        lastMessageTime = msg.created_at || lastMessageTime;
-      }
+        if (thread.last_message) {
+          const msg = thread.last_message;
+          lastMessage = msg.content || lastMessage;
+          lastMessageTime = msg.created_at || lastMessageTime;
+        }
 
-      return {
-        id: thread.id,
-        teacher_id: thread.teacher_id,
-        teacher_name: teacherName, // Используем partner_name
-        teacher_avatar: teacherAvatar, // Используем partner_avatar
-        last_message: lastMessage.length > 25 ? lastMessage.substring(0, 25) + '...' : lastMessage,
-        last_message_at: lastMessageTime,
-        unread_count: thread.unread_count || 0,
-        status: "online"
-      };
-    })
-      .filter(thread => thread.teacher_name !== "Преподаватель") // Фильтруем пустые чаты
+        return {
+          id: thread.id,
+          teacher_id: thread.teacher_id,
+          teacher_name: teacherName, // Используем partner_name
+          teacher_avatar: teacherAvatar, // Используем partner_avatar
+          last_message:
+            lastMessage.length > 25
+              ? lastMessage.substring(0, 25) + "..."
+              : lastMessage,
+          last_message_at: lastMessageTime,
+          unread_count: thread.unread_count || 0,
+          status: "online",
+        };
+      })
+      .filter((thread) => thread.teacher_name !== "Преподаватель") // Фильтруем пустые чаты
       .sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at)) // Сортируем по времени
       .slice(0, 3); // Показываем только 3 последних чата
-
   } catch (e) {
     console.error("Ошибка загрузки чатов:", e);
     chatsError.value = "Не удалось загрузить чаты";
@@ -471,7 +557,9 @@ async function loadCourses() {
   loadError.value = "";
   try {
     const token =
-      localStorage.getItem("access_token") || localStorage.getItem("token") || "";
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("token") ||
+      "";
 
     const res = await fetch(`${API_URL}/courses`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -494,7 +582,6 @@ async function loadCourses() {
       isPopular: false,
       isNew: false,
     }));
-
   } catch (e) {
     console.error("Ошибка загрузки курсов:", e);
     loadError.value = "Не удалось загрузить курсы. Проверь бэкенд и токен.";
@@ -507,12 +594,15 @@ onMounted(() => {
 
   // подгружаем пользователя (если есть токен)
   if (localStorage.getItem("access_token")) {
-    authStore.getCurrentUser().then(() => {
-      // После загрузки пользователя загружаем чаты
-      if (isAuthenticated.value) {
-        loadChats();
-      }
-    }).catch(console.error);
+    authStore
+      .getCurrentUser()
+      .then(() => {
+        // После загрузки пользователя загружаем чаты
+        if (isAuthenticated.value) {
+          loadChats();
+        }
+      })
+      .catch(console.error);
   }
 
   // грузим реальные курсы из базы
@@ -1411,7 +1501,7 @@ onUnmounted(() => {
 
 /* Анимация при наведении */
 .chat-item::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -10px;

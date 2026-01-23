@@ -30,17 +30,12 @@
       </div>
 
       <div class="actions">
-        <button @click="refreshStatus" class="refresh-btn">
-          Обновить статус
-        </button>
         <button @click="logout" class="logout-btn">Выйти</button>
       </div>
 
       <div class="contact">
         <p>Есть вопросы? Свяжитесь с администратором:</p>
-        <a href="mailto:admin@fenixedu.ru" class="contact-link">
-          admin@fenixedu.ru
-        </a>
+        <a class="contact-link"> admin@fenixedu.ru </a>
       </div>
     </div>
   </div>
@@ -86,16 +81,16 @@ const statusConfig = {
 };
 
 const statusClass = computed(
-  () => statusConfig[status.value]?.class || "pending"
+  () => statusConfig[status.value]?.class || "pending",
 );
 const statusIcon = computed(() => statusConfig[status.value]?.icon || "⏳");
 const statusTitle = computed(
-  () => statusConfig[status.value]?.title || "Ожидание подтверждения"
+  () => statusConfig[status.value]?.title || "Ожидание подтверждения",
 );
 const statusMessage = computed(
   () =>
     statusConfig[status.value]?.message ||
-    "Ваш аккаунт ожидает подтверждения администратором."
+    "Ваш аккаунт ожидает подтверждения администратором.",
 );
 
 const roleLabel = computed(() => {

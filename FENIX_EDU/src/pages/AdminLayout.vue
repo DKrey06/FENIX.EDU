@@ -37,7 +37,6 @@
             <span class="nav-text">Статистика</span>
           </router-link>
           <router-link to="/admin/settings" class="nav-item">
-            <span class="nav-icon">⚙️</span>
             <span class="nav-text">Настройки</span>
           </router-link>
         </nav>

@@ -4,6 +4,13 @@
       <!-- Боковая панель с диалогами -->
       <aside class="threads-panel">
         <div class="panel-header">
+          <button
+            class="back-btn"
+            @click="goToHome"
+            title="Вернуться на главную"
+          >
+            <span class="back-icon">←</span>
+          </button>
           <h2 class="panel-title">Сообщения</h2>
           <button class="new-chat-btn" @click="showNewChat = !showNewChat">
             <span class="btn-icon">+</span>
@@ -14,7 +21,12 @@
         <!-- Поиск -->
         <div class="search-container">
           <div class="search-box">
-            <input type="text" placeholder="Поиск диалогов..." class="search-input" v-model="searchQuery" />
+            <input
+              type="text"
+              placeholder="Поиск диалогов..."
+              class="search-input"
+              v-model="searchQuery"
+            />
             <button class="search-btn">🔍</button>
           </div>
         </div>
@@ -26,13 +38,24 @@
             <button class="close-btn" @click="showNewChat = false">×</button>
           </div>
           <div class="teachers-search">
-            <input type="text" placeholder="Поиск преподавателей..." class="teachers-search-input"
-              v-model="teacherSearch" @input="searchTeachers" />
+            <input
+              type="text"
+              placeholder="Поиск преподавателей..."
+              class="teachers-search-input"
+              v-model="teacherSearch"
+              @input="searchTeachers"
+            />
           </div>
           <div class="teachers-list">
-            <div v-for="teacher in filteredTeachers" :key="teacher.id" class="teacher-item"
-              @click="startNewChat(teacher)">
-              <div class="teacher-avatar">{{ getAvatarInitials(teacher.full_name) }}</div>
+            <div
+              v-for="teacher in filteredTeachers"
+              :key="teacher.id"
+              class="teacher-item"
+              @click="startNewChat(teacher)"
+            >
+              <div class="teacher-avatar">
+                {{ getAvatarInitials(teacher.full_name) }}
+              </div>
               <div class="teacher-info">
                 <div class="teacher-name">{{ teacher.full_name }}</div>
                 <div class="teacher-role">{{ formatRole(teacher.role) }}</div>
@@ -43,9 +66,18 @@
 
         <!-- Список диалогов -->
         <div class="threads-list">
-          <div v-for="thread in filteredThreads" :key="thread.id"
-            :class="['thread-item', { active: activeThread?.id === thread.id, unread: thread.unread_count > 0 }]"
-            @click="selectThread(thread)">
+          <div
+            v-for="thread in filteredThreads"
+            :key="thread.id"
+            :class="[
+              'thread-item',
+              {
+                active: activeThread?.id === thread.id,
+                unread: thread.unread_count > 0,
+              },
+            ]"
+            @click="selectThread(thread)"
+          >
             <div class="thread-avatar">{{ thread.teacher_avatar }}</div>
             <div class="thread-info">
               <div class="thread-name">{{ thread.teacher_name }}</div>
@@ -54,7 +86,9 @@
               </div>
             </div>
             <div class="thread-meta">
-              <span class="thread-time">{{ formatTime(thread.last_message_at) }}</span>
+              <span class="thread-time">{{
+                formatTime(thread.last_message_at)
+              }}</span>
               <span class="unread-badge" v-if="thread.unread_count > 0">
                 {{ thread.unread_count }}
               </span>
@@ -79,13 +113,22 @@
             <div class="partner-info">
               <div class="partner-name">{{ activeThread.partner_name }}</div>
               <div class="partner-status">
-                <span class="status-indicator" :class="getStatusClass(activeThread)"></span>
-                <span class="status-text">{{ getStatusText(activeThread) }}</span>
+                <span
+                  class="status-indicator"
+                  :class="getStatusClass(activeThread)"
+                ></span>
+                <span class="status-text">{{
+                  getStatusText(activeThread)
+                }}</span>
               </div>
             </div>
           </div>
           <div class="chat-actions">
-            <button class="action-btn" title="Архивировать" @click="archiveCurrentThread">
+            <button
+              class="action-btn"
+              title="Архивировать"
+              @click="archiveCurrentThread"
+            >
               <span class="action-icon">📁</span>
             </button>
           </div>
@@ -95,19 +138,35 @@
         <!-- Сообщения -->
         <div class="messages-area" ref="messagesContainer">
           <div class="messages-list">
-            <div v-for="message in messages" :key="message.id"
-              :class="['message', message.sender_id === authStore.user?.id ? 'sent' : 'received']">
-              <div class="message-avatar" v-if="message.sender_id !== authStore.user?.id">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="[
+                'message',
+                message.sender_id === authStore.user?.id ? 'sent' : 'received',
+              ]"
+            >
+              <div
+                class="message-avatar"
+                v-if="message.sender_id !== authStore.user?.id"
+              >
                 {{ getAvatarInitials(message.sender_name) }}
               </div>
               <div class="message-content">
                 <div class="message-header">
                   <span class="message-author">{{ message.sender_name }}</span>
-                  <span class="message-time">{{ formatMessageTime(message.created_at) }}</span>
+                  <span class="message-time">{{
+                    formatMessageTime(message.created_at)
+                  }}</span>
                 </div>
                 <div class="message-text">{{ message.content }}</div>
-                <div class="message-status" v-if="message.sender_id === authStore.user?.id">
-                  <span class="status-icon" :class="{ read: message.is_read }">✓✓</span>
+                <div
+                  class="message-status"
+                  v-if="message.sender_id === authStore.user?.id"
+                >
+                  <span class="status-icon" :class="{ read: message.is_read }"
+                    >✓✓</span
+                  >
                 </div>
               </div>
             </div>
@@ -117,9 +176,19 @@
         <!-- Поле ввода -->
         <div class="message-input-area">
           <div class="input-wrapper">
-            <textarea v-model="newMessage" placeholder="Введите сообщение..." class="message-input"
-              @keydown.enter.exact.prevent="sendMessage" rows="1" ref="messageInput"></textarea>
-            <button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim()">
+            <textarea
+              v-model="newMessage"
+              placeholder="Введите сообщение..."
+              class="message-input"
+              @keydown.enter.exact.prevent="sendMessage"
+              rows="1"
+              ref="messageInput"
+            ></textarea>
+            <button
+              class="send-btn"
+              @click="sendMessage"
+              :disabled="!newMessage.trim()"
+            >
               <span class="send-icon">✈️</span>
             </button>
           </div>
@@ -132,7 +201,8 @@
           <div class="empty-chat-icon">💬</div>
           <div class="empty-chat-title">Выберите диалог</div>
           <div class="empty-chat-text">
-            Выберите диалог из списка или начните новый разговор с преподавателем
+            Выберите диалог из списка или начните новый разговор с
+            преподавателем
           </div>
           <button class="empty-chat-btn" @click="showNewChat = true">
             Начать новый чат
@@ -144,87 +214,93 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { useMessengerStore } from '@/stores/messenger'
-import { useAuthStore } from '@/stores/auth'
-import { format } from 'date-fns'
-import { ru } from 'date-fns/locale'
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { useMessengerStore } from "@/stores/messenger";
+import { useAuthStore } from "@/stores/auth";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
+import { useRouter } from "vue-router";
 
-const messengerStore = useMessengerStore()
-const authStore = useAuthStore()
+const messengerStore = useMessengerStore();
+const authStore = useAuthStore();
+const router = useRouter();
 
 // Реактивные переменные
-const activeThread = ref(null)
-const newMessage = ref('')
-const showNewChat = ref(false)
-const searchQuery = ref('')
-const teacherSearch = ref('')
-const teachers = ref([])
-const messagesContainer = ref(null)
-const messageInput = ref(null)
+const activeThread = ref(null);
+const newMessage = ref("");
+const showNewChat = ref(false);
+const searchQuery = ref("");
+const teacherSearch = ref("");
+const teachers = ref([]);
+const messagesContainer = ref(null);
+const messageInput = ref(null);
 
 // Загрузка данных при монтировании
 onMounted(async () => {
-  await loadThreads()
-  await loadTeachers()
+  await loadThreads();
+  await loadTeachers();
 
   if (route.query.thread) {
     const threadId = parseInt(route.query.thread);
-    const thread = messengerStore.threads.find(t => t.id === threadId);
+    const thread = messengerStore.threads.find((t) => t.id === threadId);
     if (thread) {
       await selectThread(thread);
     }
   }
-})
+});
 
 // Загрузка диалогов
 const loadThreads = async () => {
   try {
-    await messengerStore.fetchThreads()
+    await messengerStore.fetchThreads();
   } catch (error) {
-    console.error('Ошибка загрузки диалогов:', error)
+    console.error("Ошибка загрузки диалогов:", error);
   }
-}
+};
 
 // Загрузка преподавателей
 const loadTeachers = async () => {
   try {
-    const response = await messengerStore.fetchTeachers()
-    teachers.value = response.teachers || []
+    const response = await messengerStore.fetchTeachers();
+    teachers.value = response.teachers || [];
   } catch (error) {
-    console.error('Ошибка загрузки преподавателей:', error)
+    console.error("Ошибка загрузки преподавателей:", error);
   }
-}
+};
 
 // Поиск преподавателей
 const searchTeachers = async () => {
   try {
-    const response = await messengerStore.fetchTeachers(teacherSearch.value)
-    teachers.value = response.teachers || []
+    const response = await messengerStore.fetchTeachers(teacherSearch.value);
+    teachers.value = response.teachers || [];
   } catch (error) {
-    console.error('Ошибка поиска преподавателей:', error)
+    console.error("Ошибка поиска преподавателей:", error);
   }
-}
+};
+
+// Функция для возврата на главную
+const goToHome = () => {
+  router.push("/");
+};
 
 // Отфильтрованные диалоги
 const filteredThreads = computed(() => {
   if (!searchQuery.value.trim()) {
-    return messengerStore.threads
+    return messengerStore.threads;
   }
 
-  const query = searchQuery.value.toLowerCase()
-  return messengerStore.threads.filter(thread =>
-    thread.teacher_name.toLowerCase().includes(query) ||
-    (thread.last_message?.content || '').toLowerCase().includes(query)
-  )
-})
+  const query = searchQuery.value.toLowerCase();
+  return messengerStore.threads.filter(
+    (thread) =>
+      thread.teacher_name.toLowerCase().includes(query) ||
+      (thread.last_message?.content || "").toLowerCase().includes(query),
+  );
+});
 
 // Отфильтрованные преподаватели
 const filteredTeachers = computed(() => {
-  return teachers.value.filter(teacher =>
-    teacher.id !== authStore.user?.id
-  )
-})
+  return teachers.value.filter((teacher) => teacher.id !== authStore.user?.id);
+});
 
 // Выбор диалога
 const selectThread = async (thread) => {
@@ -233,9 +309,12 @@ const selectThread = async (thread) => {
     id: thread.id,
     teacher_id: thread.teacher_id,
     teacher_name: thread.partner_name || thread.teacher_name,
-    teacher_avatar: thread.partner_avatar || thread.teacher_avatar || getAvatarInitials(thread.partner_name || thread.teacher_name),
+    teacher_avatar:
+      thread.partner_avatar ||
+      thread.teacher_avatar ||
+      getAvatarInitials(thread.partner_name || thread.teacher_name),
     partner_name: thread.partner_name || thread.teacher_name,
-    partner_id: thread.partner_id || thread.teacher_id
+    partner_id: thread.partner_id || thread.teacher_id,
   };
 
   await messengerStore.fetchThreadMessages(thread.id);
@@ -245,142 +324,145 @@ const selectThread = async (thread) => {
 
 // Начать новый чат
 const startNewChat = async (teacher) => {
-  showNewChat.value = false
-  teacherSearch.value = ''
+  showNewChat.value = false;
+  teacherSearch.value = "";
 
   // Ищем существующий диалог
   const existingThread = messengerStore.threads.find(
-    t => t.teacher_id === teacher.id
-  )
+    (t) => t.teacher_id === teacher.id,
+  );
 
   if (existingThread) {
-    await selectThread(existingThread)
+    await selectThread(existingThread);
   } else {
     // Создаем новый диалог
-    newMessage.value = `Здравствуйте! Меня зовут ${authStore.user?.full_name}. `
+    newMessage.value = `Здравствуйте! Меня зовут ${authStore.user?.full_name}. `;
     activeThread.value = {
       id: null,
       teacher_id: teacher.id,
       teacher_name: teacher.full_name,
-      teacher_avatar: getAvatarInitials(teacher.full_name)
-    }
+      teacher_avatar: getAvatarInitials(teacher.full_name),
+    };
 
     nextTick(() => {
-      messageInput.value?.focus()
-    })
+      messageInput.value?.focus();
+    });
   }
-}
+};
 
 // Отправить сообщение
 const sendMessage = async () => {
-  if (!newMessage.value.trim()) return
+  if (!newMessage.value.trim()) return;
 
   try {
     if (activeThread.value.id) {
       // Отправляем ответ в существующий диалог
-      await messengerStore.sendReply(activeThread.value.id, newMessage.value)
+      await messengerStore.sendReply(activeThread.value.id, newMessage.value);
     } else {
       // Создаем новый диалог
       const message = await messengerStore.sendMessage(
         activeThread.value.teacher_id,
-        newMessage.value
-      )
+        newMessage.value,
+      );
 
       // Обновляем активный диалог
       activeThread.value = {
         ...activeThread.value,
-        id: message.thread_id
-      }
+        id: message.thread_id,
+      };
 
       // Перезагружаем список диалогов
-      await loadThreads()
+      await loadThreads();
     }
 
-    newMessage.value = ''
-    scrollToBottom()
+    newMessage.value = "";
+    scrollToBottom();
   } catch (error) {
-    console.error('Ошибка отправки сообщения:', error)
+    console.error("Ошибка отправки сообщения:", error);
   }
-}
+};
 
 // Архивировать текущий диалог
 const archiveCurrentThread = async () => {
   if (activeThread.value?.id) {
-    await messengerStore.archiveThread(activeThread.value.id)
-    activeThread.value = null
-    await loadThreads()
+    await messengerStore.archiveThread(activeThread.value.id);
+    activeThread.value = null;
+    await loadThreads();
   }
-}
+};
 
 // Вспомогательные функции
 const getAvatarInitials = (name) => {
-  if (!name) return '👤'
-  const parts = name.split(' ')
+  if (!name) return "👤";
+  const parts = name.split(" ");
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
-  return name.slice(0, 2).toUpperCase()
-}
+  return name.slice(0, 2).toUpperCase();
+};
 
 const formatRole = (role) => {
   const roles = {
-    student: 'Студент',
-    teacher: 'Преподаватель',
-    department_head: 'Зав. кафедрой',
-    admin: 'Администратор'
-  }
-  return roles[role] || role
-}
+    student: "Студент",
+    teacher: "Преподаватель",
+    department_head: "Зав. кафедрой",
+    admin: "Администратор",
+  };
+  return roles[role] || role;
+};
 
 const formatTime = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  const now = new Date()
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
 
   if (date.toDateString() === now.toDateString()) {
-    return format(date, 'HH:mm')
+    return format(date, "HH:mm");
   }
 
   if (date.getFullYear() === now.getFullYear()) {
-    return format(date, 'd MMM', { locale: ru })
+    return format(date, "d MMM", { locale: ru });
   }
 
-  return format(date, 'dd.MM.yy')
-}
+  return format(date, "dd.MM.yy");
+};
 
 const formatMessageTime = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return format(date, 'HH:mm')
-}
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return format(date, "HH:mm");
+};
 
 const getStatusClass = (thread) => {
   // Здесь можно добавить логику определения статуса онлайн/офлайн
-  return 'online'
-}
+  return "online";
+};
 
 const getStatusText = (thread) => {
-  return 'В сети'
-}
+  return "В сети";
+};
 
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
     }
-  })
-}
+  });
+};
 
 // Компьютед-переменные для доступа к данным хранилища
-const messages = computed(() => messengerStore.messages)
-const threads = computed(() => messengerStore.threads)
+const messages = computed(() => messengerStore.messages);
+const threads = computed(() => messengerStore.threads);
 
 // Наблюдаем за изменениями в сообщениях
-watch(() => messengerStore.messages, () => {
-  scrollToBottom()
-}, { deep: true })
+watch(
+  () => messengerStore.messages,
+  () => {
+    scrollToBottom();
+  },
+  { deep: true },
+);
 </script>
-
 
 <style scoped>
 .messenger-container {
@@ -413,6 +495,33 @@ watch(() => messengerStore.messages, () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  gap: 0.75rem;
+}
+
+.back-btn {
+  background: #2f4156;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background: #1a2530;
+  transform: translateY(-2px);
+}
+
+.back-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
 }
 
 .panel-title {
@@ -420,6 +529,8 @@ watch(() => messengerStore.messages, () => {
   color: #2f4156;
   font-weight: 700;
   margin: 0;
+  flex: 1;
+  text-align: center;
 }
 
 .new-chat-btn {
@@ -992,7 +1103,6 @@ watch(() => messengerStore.messages, () => {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
 
 @media (max-width: 1024px) {
   .messenger-grid {

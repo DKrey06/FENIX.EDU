@@ -38,12 +38,8 @@
               >
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link
-                to="/courses"
-                class="nav-item"
-                :class="{ active: $route.path === '/courses' }"
-              >
-                <span class="nav-text">Курсы</span>
+              <router-link to="/admin" class="nav-item">
+                <span class="nav-text">Админ-панель</span>
               </router-link>
             </nav>
           </div>
@@ -195,10 +191,15 @@
               <label class="modal-label">Название</label>
               <input
                 v-model="newCourseName"
+                @input="validateName"
                 class="modal-input"
+                :class="{ 'input-error': nameError }"
                 type="text"
                 placeholder="Например: Математика 1"
               />
+              <div v-if="nameError" class="modal-error name-error">
+                {{ nameError }}
+              </div>
 
               <label class="modal-label">Описание (необязательно)</label>
               <textarea
@@ -234,7 +235,10 @@
                 :disabled="
                   isCreating ||
                   !newCourseName.trim() ||
-                  !newCourseGroup.trim()
+                  !newCourseGroup.trim() ||
+                  nameError ||
+                  newCourseName.trim().length < 3 ||
+                  newCourseName.trim().length > 100
                 "
               >
                 {{ isCreating ? "Создание..." : "Создать" }}
@@ -267,6 +271,7 @@ const newCourseDescription = ref("");
 const newCourseGroup = ref("");
 const isCreating = ref(false);
 const createError = ref("");
+const nameError = ref(""); // Новая переменная для ошибки названия
 
 const canCreateCourse = computed(() => {
   const role = authStore.user?.role;
@@ -275,6 +280,7 @@ const canCreateCourse = computed(() => {
 
 const openCreateModal = () => {
   createError.value = "";
+  nameError.value = "";
   newCourseName.value = "";
   newCourseDescription.value = "";
   newCourseGroup.value = authStore.user?.group || "";
@@ -285,6 +291,21 @@ const closeCreateModal = () => {
   showCreateModal.value = false;
   isCreating.value = false;
   createError.value = "";
+  nameError.value = "";
+};
+
+// Валидация названия при вводе
+const validateName = () => {
+  const name = newCourseName.value.trim();
+  nameError.value = "";
+
+  if (!name) {
+    nameError.value = "Название курса обязательно";
+  } else if (name.length < 3) {
+    nameError.value = "Название курса должно содержать минимум 3 символа";
+  } else if (name.length > 100) {
+    nameError.value = "Название курса не может превышать 100 символов";
+  }
 };
 
 const createCourse = async () => {
@@ -292,7 +313,25 @@ const createCourse = async () => {
   const targetGroup = newCourseGroup.value.trim();
   const description = newCourseDescription.value.trim();
 
-  if (!name || !targetGroup) return;
+  // Валидация названия курса
+  nameError.value = "";
+  if (!name) {
+    nameError.value = "Название курса обязательно";
+    return;
+  }
+  if (name.length < 3) {
+    nameError.value = "Название курса должно содержать минимум 3 символа";
+    return;
+  }
+  if (name.length > 100) {
+    nameError.value = "Название курса не может превышать 100 символов";
+    return;
+  }
+
+  if (!targetGroup) {
+    createError.value = "Укажите группу для курса";
+    return;
+  }
 
   try {
     isCreating.value = true;
@@ -316,7 +355,8 @@ const createCourse = async () => {
 
     if (!resp.ok) {
       const text = await resp.text();
-      createError.value = `Ошибка создания курса: ${resp.status} ${text || ""}`.trim();
+      createError.value =
+        `Ошибка создания курса: ${resp.status} ${text || ""}`.trim();
       return;
     }
 
@@ -377,7 +417,7 @@ const mapBackendCourse = (c) => {
 
 const filteredCourses = computed(() => {
   let result = courses.value.filter(
-    (course) => course.status === activeTab.value
+    (course) => course.status === activeTab.value,
   );
 
   const selectedFilters = filters.value
@@ -486,6 +526,7 @@ const handleLogout = () => {
   router.push("/login");
 };
 </script>
+
 <style scoped>
 .archive-page {
   min-height: calc(100vh - 200px);
@@ -936,6 +977,177 @@ const handleLogout = () => {
   min-width: 35px;
 }
 
+/* Стили для модального окна */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.modal-body {
+  margin-bottom: 1.5rem;
+}
+
+.modal-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2f4156;
+  margin-bottom: 0.5rem;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.modal-input.input-error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.modal-input.input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+
+.name-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.modal-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-error {
+  font-size: 0.85rem;
+  color: #dc2626;
+  padding: 0.5rem;
+  background-color: #fef2f2;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.modal-btn.secondary {
+  background: #e7e7ec;
+  color: #2f4156;
+}
+
+.modal-btn.secondary:hover:not(:disabled) {
+  background: #d5d5dd;
+}
+
+.modal-btn.primary {
+  background: #2f4156;
+  color: white;
+}
+
+.modal-btn.primary:hover:not(:disabled) {
+  background: #1a2a3a;
+}
+
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-course-btn {
+  padding: 0.5rem 1.5rem;
+  background: #2f4156;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.create-course-btn:hover {
+  background: #1a2a3a;
+}
+
+.empty-structure {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+.loading-text {
+  text-align: center;
+  padding: 1rem;
+  color: #4a5568;
+}
+
 /* Адаптивность */
 @media (max-width: 1400px) {
   .courses-grid {
@@ -1001,6 +1213,11 @@ const handleLogout = () => {
   .course-description {
     font-size: 0.9rem;
   }
+
+  .modal-card {
+    width: 95%;
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1025,6 +1242,14 @@ const handleLogout = () => {
 
   .course-image {
     height: 140px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-btn {
+    width: 100%;
   }
 }
 </style>

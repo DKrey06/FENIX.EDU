@@ -237,24 +237,6 @@
               </div>
             </div>
 
-            <div class="terms-agreement">
-              <input
-                type="checkbox"
-                id="terms"
-                v-model="registerData.acceptTerms"
-                class="checkbox"
-                :class="{ error: errors.acceptTerms }"
-              />
-              <label for="terms" class="checkbox-label">
-                Я соглашаюсь с
-                <a href="#" class="terms-link">условиями использования</a> и
-                <a href="#" class="terms-link">политикой конфиденциальности</a>
-              </label>
-            </div>
-            <div v-if="errors.acceptTerms" class="error-message">
-              {{ errors.acceptTerms }}
-            </div>
-
             <button type="submit" class="submit-btn" :disabled="isLoading">
               <span v-if="!isLoading">Создать аккаунт</span>
               <span v-else class="loading">⏳</span>
@@ -291,7 +273,6 @@ const registerData = reactive({
   role: "student",
   course: "",
   group: "",
-  acceptTerms: false,
 });
 
 // Ошибки валидации
@@ -303,7 +284,6 @@ const errors = reactive({
   confirmPassword: "",
   course: "",
   group: "",
-  acceptTerms: "",
 });
 
 // Состояния
@@ -341,7 +321,7 @@ watch(
     } else {
       errors.password = "";
     }
-  }
+  },
 );
 
 watch(
@@ -355,10 +335,10 @@ watch(
     } else {
       errors.confirmPassword = "";
     }
-  }
+  },
 );
 
-// Обработчик регистрации - УПРОЩЕННАЯ ВЕРСИЯ
+// Обработчик регистрации
 const handleRegister = async () => {
   Object.keys(errors).forEach((key) => (errors[key] = ""));
 
@@ -410,11 +390,6 @@ const handleRegister = async () => {
     }
   }
 
-  if (!registerData.acceptTerms) {
-    errors.acceptTerms = "Необходимо принять условия использования";
-    isValid = false;
-  }
-
   if (!isValid) return;
 
   isLoading.value = true;
@@ -436,7 +411,7 @@ const handleRegister = async () => {
 
     // После успешной регистрации сразу перенаправляем на страницу ожидания
     alert(
-      "Регистрация успешна! Ваш аккаунт ожидает подтверждения администратором."
+      "Регистрация успешна! Ваш аккаунт ожидает подтверждения администратором.",
     );
 
     // Очищаем поля формы
@@ -444,8 +419,6 @@ const handleRegister = async () => {
       if (key !== "role") {
         if (typeof registerData[key] === "string") {
           registerData[key] = "";
-        } else if (typeof registerData[key] === "boolean") {
-          registerData[key] = false;
         }
       }
     });
@@ -460,12 +433,10 @@ const handleRegister = async () => {
     let errorMessage = "Произошла ошибка при регистрации";
 
     if (error.response) {
-      // Ошибка от сервера с ответом
       const responseData = error.response.data;
 
       if (responseData) {
         if (responseData.detail) {
-          // Если детали - это массив (валидационные ошибки)
           if (Array.isArray(responseData.detail)) {
             responseData.detail.forEach((err) => {
               if (err.loc && err.loc[1]) {
@@ -473,15 +444,11 @@ const handleRegister = async () => {
                 errors[field] = err.msg;
               }
             });
-            return; // Выходим, так как уже установили ошибки в поля
-          }
-          // Если детали - строка
-          else if (typeof responseData.detail === "string") {
+            return;
+          } else if (typeof responseData.detail === "string") {
             errorMessage = responseData.detail;
           }
-        }
-        // Проверяем другие возможные форматы ошибок
-        else if (responseData.message) {
+        } else if (responseData.message) {
           errorMessage = responseData.message;
         } else if (responseData.email && Array.isArray(responseData.email)) {
           errors.email = responseData.email[0];
@@ -495,14 +462,11 @@ const handleRegister = async () => {
         }
       }
     } else if (error.request) {
-      // Запрос был сделан, но ответ не получен
       errorMessage = "Сервер не отвечает. Проверьте подключение к интернету.";
     } else if (error.message) {
-      // Ошибка в настройке запроса
       errorMessage = error.message;
     }
 
-    // Показываем общую ошибку
     alert(errorMessage);
     errors.email = errorMessage;
   } finally {
@@ -535,7 +499,7 @@ const handleRegister = async () => {
 .auth-illustration {
   background: linear-gradient(135deg, #4c51bf 0%, #805ad5 100%);
   color: white;
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,62 +511,44 @@ const handleRegister = async () => {
 }
 
 .illustration-icon {
-  font-size: 4rem;
-  margin-bottom: 2rem;
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
   display: inline-block;
 }
 
 .illustration-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   line-height: 1.3;
 }
 
 .illustration-text {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin-bottom: 3rem;
-  line-height: 1.6;
-}
-
-.features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  text-align: left;
-}
-
-.feature {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   font-size: 1rem;
-}
-
-.feature-icon {
-  font-size: 1.25rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+  line-height: 1.5;
 }
 
 .auth-form-wrapper {
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
 }
 
 .auth-form {
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   margin: 0 auto;
 }
 
 .form-header {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
 .form-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.5rem;
@@ -610,13 +556,13 @@ const handleRegister = async () => {
 
 .form-subtitle {
   color: #718096;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .name-group {
@@ -626,15 +572,15 @@ const handleRegister = async () => {
 }
 
 .form-group {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #4a5568;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .input-group {
@@ -643,20 +589,12 @@ const handleRegister = async () => {
   align-items: center;
 }
 
-.input-icon {
-  position: absolute;
-  left: 1rem;
-  font-size: 1.25rem;
-  color: #a0aec0;
-  z-index: 1;
-}
-
 .form-input {
   width: 100%;
-  padding: 0.875rem 1rem 0.875rem 3rem;
+  padding: 0.75rem 1rem;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   transition: all 0.3s;
   background: white;
 }
@@ -673,19 +611,23 @@ const handleRegister = async () => {
 
 .password-toggle {
   position: absolute;
-  right: 1rem;
+  right: 0.75rem;
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   cursor: pointer;
   color: #a0aec0;
   padding: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .error-message {
   color: #fc8181;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  min-height: 1.2rem;
 }
 
 /* Требования к паролю */
@@ -764,11 +706,11 @@ const handleRegister = async () => {
 .role-content {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .role-icon {
-  font-size: 2rem;
+  font-size: 1.8rem;
 }
 
 .role-info {
@@ -778,7 +720,7 @@ const handleRegister = async () => {
 .role-title {
   font-weight: 600;
   color: #2d3748;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .role-description {
@@ -787,55 +729,17 @@ const handleRegister = async () => {
   margin-top: 0.25rem;
 }
 
-.terms-agreement {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-
-.checkbox {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.25rem;
-  flex-shrink: 0;
-}
-
-.checkbox.error {
-  border-color: #fc8181;
-}
-
-.checkbox-label {
-  font-size: 0.875rem;
-  color: #4a5568;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.terms-link {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.terms-link:hover {
-  text-decoration: underline;
-}
-
 .submit-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  padding: 1rem;
-  border-radius: 10px;
-  font-size: 1rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -865,14 +769,14 @@ const handleRegister = async () => {
 
 .auth-footer {
   text-align: center;
-  padding-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid #e2e8f0;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .footer-text {
   color: #718096;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .auth-link {
@@ -893,11 +797,11 @@ const handleRegister = async () => {
   }
 
   .auth-illustration {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 
   .auth-form-wrapper {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 }
 
@@ -909,9 +813,7 @@ const handleRegister = async () => {
   .role-selector {
     flex-direction: column;
   }
-}
 
-@media (max-width: 576px) {
   .auth-page {
     padding: 1rem;
   }
@@ -929,6 +831,41 @@ const handleRegister = async () => {
   }
 
   .form-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-illustration {
+    padding: 1.5rem;
+  }
+
+  .auth-form-wrapper {
+    padding: 1.5rem;
+  }
+
+  .illustration-title {
+    font-size: 1.3rem;
+  }
+
+  .form-title {
+    font-size: 1.3rem;
+  }
+
+  .illustration-icon {
+    font-size: 3rem;
+  }
+
+  .form-input {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+  }
+
+  .role-option {
+    padding: 0.75rem;
+  }
+
+  .role-icon {
     font-size: 1.5rem;
   }
 }

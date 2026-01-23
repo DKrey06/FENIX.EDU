@@ -3,7 +3,13 @@
     <div class="discussion-container">
       <div class="discussion-section">
         <div class="discussion-header">
-          <h2 class="content-title">Обсуждения</h2>
+          <div class="header-left">
+            <router-link to="/" class="back-to-main">
+              <span class="back-icon">←</span>
+              На главную
+            </router-link>
+            <h2 class="content-title">Обсуждения</h2>
+          </div>
 
           <div class="search-box">
             <input
@@ -48,13 +54,19 @@
               <h3 class="sidebar-title">Разделы курса</h3>
             </div>
 
-            <div v-if="loadingStructure" class="hint">Загрузка структуры...</div>
+            <div v-if="loadingStructure" class="hint">
+              Загрузка структуры...
+            </div>
             <div v-else-if="sections.length === 0" class="hint">
               В курсе пока нет структуры
             </div>
 
             <div v-else class="sections-tree">
-              <div v-for="sec in filteredSections" :key="sec._key" class="sec-block">
+              <div
+                v-for="sec in filteredSections"
+                :key="sec._key"
+                class="sec-block"
+              >
                 <div class="sec-title">
                   <span class="sec-number">Раздел {{ sec.number }}.</span>
                   <span>{{ sec.title }}</span>
@@ -110,76 +122,109 @@
             </div>
 
             <div class="messages-list" v-if="activeSubsectionId">
-              <div v-if="loadingComments" class="hint">Загрузка комментариев...</div>
+              <div v-if="loadingComments" class="hint">
+                Загрузка комментариев...
+              </div>
 
               <div v-else-if="comments.length === 0" class="hint">
                 Комментариев пока нет — можно начать обсуждение.
               </div>
 
               <div v-else>
-                <div
-                  v-for="c in comments"
-                  :key="c.id"
-                  class="message"
-                  :class="c.author_role === 'teacher' ? 'teacher' : 'student'"
-                >
-                  <div class="message__header">
-                    <div class="message__author">
-                      <div class="author-info">
-                        <span class="author-name">{{ c.author_name }}</span>
-                        <span class="author-role">{{ roleLabel(c.author_role) }}</span>
+                <!-- Основное сообщение -->
+                <div v-for="c in comments" :key="c.id" class="message-block">
+                  <div
+                    class="message"
+                    :class="c.author_role === 'teacher' ? 'teacher' : 'student'"
+                  >
+                    <div class="message__header">
+                      <div class="message__author">
+                        <div class="author-info">
+                          <span class="author-name">{{ c.author_name }}</span>
+                          <span class="author-role">{{
+                            roleLabel(c.author_role)
+                          }}</span>
+                        </div>
+                      </div>
+                      <span class="message__time">{{
+                        formatDateTime(c.created_at)
+                      }}</span>
+                    </div>
+
+                    <div class="message__content">
+                      <p>{{ c.content }}</p>
+                    </div>
+
+                    <div v-if="isAuthenticated" class="reply-form">
+                      <div
+                        v-if="!isReplyOpen(c.id)"
+                        class="reply-toggle"
+                        @click="openReply(c.id)"
+                      >
+                        Ответить
+                      </div>
+
+                      <div v-else>
+                        <textarea
+                          v-model="replyDraft[c.id]"
+                          placeholder="Введите ответ..."
+                          class="question-input"
+                          rows="3"
+                        ></textarea>
+
+                        <div class="ask-actions">
+                          <button
+                            class="btn btn--primary"
+                            @click="sendReply(c.id)"
+                          >
+                            Отправить
+                          </button>
+                          <button
+                            class="btn btn--secondary"
+                            @click="closeReply(c.id)"
+                          >
+                            Отмена
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <span class="message__time">{{ formatDateTime(c.created_at) }}</span>
                   </div>
 
-                  <div class="message__content">
-                    <p>{{ c.content }}</p>
-                  </div>
-
-                  <div v-if="Array.isArray(c.replies) && c.replies.length" class="replies">
+                  <!-- Ответы на основное сообщение -->
+                  <div
+                    v-if="Array.isArray(c.replies) && c.replies.length"
+                    class="replies-container"
+                  >
                     <div
                       v-for="r in c.replies"
                       :key="r.id"
-                      class="message reply"
-                      :class="r.author_role === 'teacher' ? 'teacher' : 'student'"
+                      class="reply-wrapper"
                     >
-                      <div class="message__header">
-                        <div class="message__author">
-                          <div class="author-info">
-                            <span class="author-name">{{ r.author_name }}</span>
-                            <span class="author-role">{{ roleLabel(r.author_role) }}</span>
+                      <div
+                        class="message reply"
+                        :class="
+                          r.author_role === 'teacher' ? 'teacher' : 'student'
+                        "
+                      >
+                        <div class="message__header">
+                          <div class="message__author">
+                            <div class="author-info">
+                              <span class="author-name">{{
+                                r.author_name
+                              }}</span>
+                              <span class="author-role">{{
+                                roleLabel(r.author_role)
+                              }}</span>
+                            </div>
                           </div>
+                          <span class="message__time">{{
+                            formatDateTime(r.created_at)
+                          }}</span>
                         </div>
-                        <span class="message__time">{{ formatDateTime(r.created_at) }}</span>
-                      </div>
 
-                      <div class="message__content">
-                        <p>{{ r.content }}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-if="isAuthenticated" class="reply-form">
-                    <div v-if="!isReplyOpen(c.id)" class="reply-toggle" @click="openReply(c.id)">
-                      Ответить
-                    </div>
-
-                    <div v-else>
-                      <textarea
-                        v-model="replyDraft[c.id]"
-                        placeholder="Введите ответ..."
-                        class="question-input"
-                        rows="3"
-                      ></textarea>
-
-                      <div class="ask-actions">
-                        <button class="btn btn--primary" @click="sendReply(c.id)">
-                          Отправить
-                        </button>
-                        <button class="btn btn--secondary" @click="closeReply(c.id)">
-                          Отмена
-                        </button>
+                        <div class="message__content">
+                          <p>{{ r.content }}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -187,7 +232,10 @@
               </div>
             </div>
 
-            <div class="ask-question" v-if="activeSubsectionId && isAuthenticated">
+            <div
+              class="ask-question"
+              v-if="activeSubsectionId && isAuthenticated"
+            >
               <h3 class="ask-title">Написать комментарий</h3>
               <div class="ask-form">
                 <textarea
@@ -227,10 +275,9 @@ import { useRoute } from "vue-router";
 
 const route = useRoute();
 
-const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8000").replace(
-  /\/$/,
-  ""
-);
+const apiBase = (
+  import.meta?.env?.VITE_API_BASE || "http://localhost:8000"
+).replace(/\/$/, "");
 
 const courses = ref([]);
 const sections = ref([]);
@@ -379,7 +426,9 @@ const visibleCourses = computed(() => courses.value || []);
 const activeSubsection = computed(() => {
   if (!activeSubsectionId.value) return null;
   for (const sec of sections.value) {
-    const found = (sec.subsections || []).find((s) => s.id === activeSubsectionId.value);
+    const found = (sec.subsections || []).find(
+      (s) => s.id === activeSubsectionId.value,
+    );
     if (found) return found;
   }
   return null;
@@ -402,7 +451,7 @@ const filteredSections = computed(() => {
   return normalized
     .map((sec) => {
       const subs = sec.subsections.filter((s) =>
-        (s.title || "").toLowerCase().includes(q)
+        (s.title || "").toLowerCase().includes(q),
       );
       return { ...sec, subsections: subs };
     })
@@ -431,7 +480,8 @@ async function loadCourses() {
       await selectCourse(courses.value[0].id);
     }
   } catch (e) {
-    errorText.value = "Не удалось загрузить курсы. Проверь авторизацию и доступ к API.";
+    errorText.value =
+      "Не удалось загрузить курсы. Проверь авторизацию и доступ к API.";
     console.error(e);
   } finally {
     loadingCourses.value = false;
@@ -473,7 +523,7 @@ async function loadComments() {
 
   try {
     const data = await apiGet(
-      `/api/discussions?course_id=${activeCourseId.value}&subsection_id=${activeSubsectionId.value}`
+      `/api/discussions?course_id=${activeCourseId.value}&subsection_id=${activeSubsectionId.value}`,
     );
 
     comments.value = Array.isArray(data) ? data : [];
@@ -578,7 +628,7 @@ watch(
     if (found && activeCourseId.value !== found.id) {
       await selectCourse(found.id);
     }
-  }
+  },
 );
 
 onMounted(async () => {
@@ -611,6 +661,37 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.back-to-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #2f4156;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(47, 65, 86, 0.08);
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.back-to-main:hover {
+  background: #f6fbff;
+  border-color: #2f4156;
+}
+
+.back-icon {
+  font-size: 1.1rem;
 }
 
 .content-title {
@@ -685,10 +766,9 @@ onMounted(async () => {
 }
 
 .sidebar-title {
-  font-family: "Holtwood One SC", serif;
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   color: #2f4156;
-  font-weight: 400;
+  font-weight: 600;
   margin: 0;
   padding: 0.8rem 1.5rem;
   background: #d3a5b1;
@@ -870,31 +950,27 @@ onMounted(async () => {
   font-size: 0.85rem;
 }
 
+/* Стили для сообщений с отступами */
 .messages-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem; /* Увеличил отступ между блоками сообщений */
   max-height: 500px;
   overflow-y: auto;
   padding-right: 0.5rem;
 }
 
-.messages-list::-webkit-scrollbar {
-  width: 6px;
+.message-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Отступ между основным сообщением и ответами */
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-.messages-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.messages-list::-webkit-scrollbar-thumb {
-  background: #c8dae8;
-  border-radius: 3px;
-}
-
-.messages-list::-webkit-scrollbar-thumb:hover {
-  background: #a0b9d0;
+.message-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .message {
@@ -968,16 +1044,60 @@ onMounted(async () => {
   color: #4a5568;
   line-height: 1.6;
   font-size: 0.95rem;
+  margin: 0;
+}
+
+.replies-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* Отступ между ответами */
+  margin-left: 2rem; /* Отступ слева для ответов */
+  padding-left: 1.5rem;
+  border-left: 2px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+}
+
+.replies-container::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    rgba(66, 153, 225, 0.2),
+    rgba(72, 187, 120, 0.2)
+  );
+}
+
+.reply-wrapper {
+  position: relative;
+}
+
+.reply-wrapper::before {
+  content: "↳";
+  position: absolute;
+  left: -1.8rem;
+  top: 0.5rem;
+  color: #a0aec0;
+  font-size: 1.2rem;
+}
+
+.reply {
+  background: rgba(247, 250, 252, 0.8);
+  border-left: 3px solid;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.reply.student {
+  border-left-color: #4299e1;
 }
 
 .reply.teacher {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e7e7ec;
-  border-left: 4px solid #48bb78;
-  padding-left: 1rem;
-  background: rgba(72, 187, 120, 0.05);
-  border-radius: 12px;
+  border-left-color: #48bb78;
 }
 
 .reply-form {
@@ -988,11 +1108,34 @@ onMounted(async () => {
   padding: 1rem;
 }
 
+.reply-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4299e1;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.reply-toggle:hover {
+  background: rgba(66, 153, 225, 0.1);
+}
+
+.reply-toggle::before {
+  content: "↪";
+  font-size: 1rem;
+}
+
 .ask-question {
   background: #c8dae8;
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-top: 2rem;
 }
 
 .ask-title {
@@ -1084,6 +1227,24 @@ onMounted(async () => {
   font-weight: 600;
 }
 
+.messages-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.messages-list::-webkit-scrollbar-thumb {
+  background: #c8dae8;
+  border-radius: 3px;
+}
+
+.messages-list::-webkit-scrollbar-thumb:hover {
+  background: #a0b9d0;
+}
+
 @media (max-width: 1200px) {
   .discussion-content-wrapper {
     grid-template-columns: 1fr;
@@ -1115,6 +1276,11 @@ onMounted(async () => {
     width: 100%;
   }
 
+  .replies-container {
+    margin-left: 1rem;
+    padding-left: 1rem;
+  }
+
   .ask-actions {
     flex-direction: column;
   }
@@ -1138,6 +1304,11 @@ onMounted(async () => {
 
   .message__time {
     align-self: flex-end;
+  }
+
+  .replies-container {
+    margin-left: 0.5rem;
+    padding-left: 0.75rem;
   }
 }
 </style>

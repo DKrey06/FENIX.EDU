@@ -115,7 +115,9 @@
 
                     <div class="file-info">
                       <div class="file-name">{{ file.name }}</div>
-                      <div class="file-meta">{{ formatFileSize(file.size) }}</div>
+                      <div class="file-meta">
+                        {{ formatFileSize(file.size) }}
+                      </div>
                     </div>
 
                     <button
@@ -190,7 +192,8 @@
         <div class="course-stats">
           <div class="stats-title">Статистика курса</div>
 
-          <button type="button" @click="goToDiscussion">
+          <!-- Кнопка "Перейти к обсуждению" -->
+          <button type="button" class="discussion-btn" @click="goToDiscussion">
             Перейти к обсуждению
           </button>
 
@@ -265,7 +268,7 @@ const loadAssignmentForSubsection = async (courseId, subsectionId) => {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (!resp.ok) return;
@@ -282,7 +285,7 @@ const loadAssignmentForSubsection = async (courseId, subsectionId) => {
             Authorization: `Bearer ${token}`,
             Accept: "application/json",
           },
-        }
+        },
       );
 
       let attachments = [];
@@ -304,12 +307,12 @@ const previewImageName = ref("");
 const totalSubsections = computed(() => {
   return sections.value.reduce(
     (total, section) => total + (section.subsections?.length || 0),
-    0
+    0,
   );
 });
 
 const canEdit = computed(() =>
-  ["teacher", "department_head", "admin"].includes(authStore.user?.role)
+  ["teacher", "department_head", "admin"].includes(authStore.user?.role),
 );
 
 const goToDiscussion = () => {
@@ -440,11 +443,10 @@ onMounted(() => {
 .course-detail-page {
   min-height: calc(100vh - 200px);
   padding: 2rem;
-  background: #f6fbff;
+  background: linear-gradient(135deg, #f6fbff 0%, #f0f7ff 100%);
 }
 
 /* шапка курса */
-
 .course-header {
   display: flex;
   justify-content: space-between;
@@ -468,33 +470,42 @@ onMounted(() => {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 6px rgba(47, 65, 86, 0.08);
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .breadcrumb-link:hover {
   background: #f6fbff;
   border-color: #2f4156;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.12);
 }
 
 .breadcrumb-icon {
   font-size: 1.1rem;
 }
 
+/* Изменено: ограничиваем ширину блока с названием курса */
 .header-content {
   background: #ffffff;
-  padding: 1.5rem 2rem;
+  padding: 1.25rem 1.75rem;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  border: 1px solid #e7f0ff;
+  max-width: 800px; /* Ограничиваем максимальную ширину */
+  width: 100%;
+  flex: 1;
 }
 
 .course-title {
-  font-size: 1.8rem;
+  font-size: 1.6rem; /* Немного уменьшили размер шрифта */
   color: #2f4156;
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
 }
 
 .course-meta {
@@ -511,6 +522,7 @@ onMounted(() => {
   background: #f8fafc;
   border-radius: 999px;
   font-size: 0.9rem;
+  border: 1px solid #e2e8f0;
 }
 
 .meta-dot {
@@ -520,15 +532,16 @@ onMounted(() => {
 }
 
 .dot-progress {
-  background: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
 }
 
 .dot-done {
-  background: #10b981;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
 }
 
 .meta-label {
   color: #6b7280;
+  font-weight: 500;
 }
 
 .meta-value {
@@ -542,7 +555,6 @@ onMounted(() => {
 }
 
 /* основной контент */
-
 .course-content {
   display: grid;
   grid-template-columns: 3fr 1.4fr;
@@ -550,12 +562,12 @@ onMounted(() => {
 }
 
 /* левая колонка — разделы */
-
 .course-sections {
   background: #ffffff;
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
 }
 
 .sections-header {
@@ -586,12 +598,66 @@ onMounted(() => {
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .edit-btn:hover {
   background: #2f4156;
   color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.2);
+}
+
+/* Кнопка "Перейти к обсуждению" - убрана иконка */
+.discussion-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.discussion-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.discussion-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.discussion-btn:hover::before {
+  left: 100%;
+}
+
+.discussion-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
 }
 
 .sections-list {
@@ -606,12 +672,13 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
   overflow: hidden;
   background: #f9fbff;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .section-item.section-active {
-  border-color: #2f4156;
-  box-shadow: 0 4px 14px rgba(47, 65, 86, 0.14);
+  border-color: #667eea;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.14);
+  background: #f8fbff;
 }
 
 .section-header {
@@ -620,6 +687,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background: #f0f7ff;
 }
 
 .section-title {
@@ -633,20 +705,22 @@ onMounted(() => {
   font-weight: 600;
   color: #2f4156;
   text-transform: uppercase;
+  font-size: 0.9rem;
 }
 
 .section-name {
   font-weight: 500;
   color: #2d3748;
+  font-size: 1rem;
 }
 
 .section-toggle {
   font-size: 0.9rem;
-  color: #4b5563;
+  color: #667eea;
+  font-weight: 500;
 }
 
 /* задания */
-
 .subsection-list {
   padding: 0.7rem 1.1rem 0.9rem 1.5rem;
   display: flex;
@@ -661,12 +735,14 @@ onMounted(() => {
   padding: 0.65rem 0.85rem;
   border-radius: 10px;
   background: #ffffff;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  border: 1px solid #e7f0ff;
 }
 
 .subsection-item:hover {
   background: #edf2f7;
   transform: translateX(3px);
+  border-color: #cbd5e1;
 }
 
 .subsection-main {
@@ -678,6 +754,7 @@ onMounted(() => {
 .subsection-icon {
   font-size: 1.1rem;
   margin-top: 0.1rem;
+  color: #667eea;
 }
 
 .subsection-text {
@@ -705,25 +782,28 @@ onMounted(() => {
   font-size: 0.8rem;
   font-weight: 600;
   align-self: center;
+  border: 1px solid transparent;
 }
 
 .status-completed {
-  background: #dcfce7;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
   color: #166534;
+  border-color: #86efac;
 }
 
 .status-pending {
-  background: #fef3c7;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   color: #92400e;
+  border-color: #fcd34d;
 }
 
 .status-locked {
-  background: #e5e7eb;
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
   color: #374151;
+  border-color: #9ca3af;
 }
 
 /* файлы задания */
-
 .subsection-files {
   padding-left: 2.2rem;
   display: flex;
@@ -738,6 +818,15 @@ onMounted(() => {
   padding: 0.4rem 0.55rem;
   border-radius: 6px;
   background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.file-row:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
 }
 
 .file-thumb {
@@ -749,15 +838,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid #d1d5db;
   padding: 0;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-thumb:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
 
 .thumb-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.file-thumb:hover .thumb-img {
+  transform: scale(1.05);
 }
 
 .file-icon {
@@ -770,6 +870,7 @@ onMounted(() => {
   justify-content: center;
   font-size: 0.85rem;
   color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 .file-info {
@@ -787,18 +888,20 @@ onMounted(() => {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .file-open-btn:hover {
   background: #2f4156;
   color: #ffffff;
   border-color: #2f4156;
+  transform: translateY(-1px);
 }
 
 .file-name {
   font-size: 0.9rem;
   color: #111827;
+  font-weight: 500;
 }
 
 .file-meta {
@@ -807,7 +910,6 @@ onMounted(() => {
 }
 
 /* правая колонка — статистика */
-
 .course-stats-panel {
   display: flex;
   flex-direction: column;
@@ -819,6 +921,7 @@ onMounted(() => {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
 }
 
 .stats-title {
@@ -826,6 +929,8 @@ onMounted(() => {
   font-weight: 700;
   color: #2f4156;
   margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .stats-grid {
@@ -840,46 +945,47 @@ onMounted(() => {
   gap: 0.75rem;
   padding: 0.75rem 0.9rem;
   border-radius: 12px;
-  background: #f6fbff;
+  background: linear-gradient(135deg, #f6fbff 0%, #e8f2ff 100%);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
-.stat-icon {
-  font-size: 1.4rem;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+.stat-item:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .stat-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .stat-value {
   font-size: 1.2rem;
   font-weight: 700;
   color: #2f4156;
+  line-height: 1;
 }
 
 .stat-label {
   font-size: 0.85rem;
   color: #4a5568;
+  font-weight: 500;
 }
 
 /* модалка полноэкранного просмотра изображения */
-
 .image-modal {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 60;
+  backdrop-filter: blur(4px);
 }
 
 .image-modal-content {
@@ -891,6 +997,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: modalAppear 0.3s ease-out;
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .image-modal-content img {
@@ -915,6 +1034,7 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 260px;
+  font-weight: 500;
 }
 
 .image-close-btn {
@@ -924,12 +1044,27 @@ onMounted(() => {
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
-  background: #f97316;
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
   color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.image-close-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.empty-structure {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px dashed #d1d5db;
 }
 
 /* адаптив */
-
 @media (max-width: 992px) {
   .course-content {
     grid-template-columns: 1fr;
@@ -942,6 +1077,7 @@ onMounted(() => {
 
   .header-content {
     width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -951,13 +1087,26 @@ onMounted(() => {
   }
 
   .course-title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
   }
 
   .sections-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
+  }
+
+  .subsection-files {
+    padding-left: 1rem;
+  }
+
+  .discussion-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .stat-item {
+    padding: 0.6rem 0.75rem;
   }
 }
 </style>
