@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
-import LandingPage from "../pages/LandingPage.vue";
 import IndexPage from "../components/IndexPage.vue";
 import LoginPage from "../pages/auth/LoginPage.vue";
 import RegisterPage from "../pages/auth/RegisterPage.vue";
@@ -14,8 +13,8 @@ import WaitingApprovalPage from "../pages/WaitingApprovalPage.vue";
 const routes = [
   {
     path: "/",
-    name: "Landing",
-    component: LandingPage,
+    name: "Home",
+    component: LoginPage,
     meta: { guestOnly: true },
   },
   {
@@ -187,6 +186,5 @@ router.beforeEach(async (to, from, next) => {
 
   next();
 });
-
 
 export default router;
