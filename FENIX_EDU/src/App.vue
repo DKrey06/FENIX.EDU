@@ -1,19 +1,30 @@
 <template>
-  <div class="app">
-    <Header />
-    <main class="main-content">
-      <router-view />
-    </main>
-    <Footer />
+  <div id="app">
+    <Header v-if="!isAuthPage" />
+    <router-view />
   </div>
 </template>
 
 <script setup>
+import { computed } from "vue";
+import { useRoute } from "vue-router";
 import Header from "./components/Header.vue";
-import Footer from "./components/Footer.vue";
+
+const route = useRoute();
+
+const isAuthPage = computed(() => {
+  return (
+    route.path === "/login" || route.path === "/register" || route.path === "/"
+  );
+});
 </script>
 
 <style>
+#app {
+  min-height: 100vh;
+  background: #f7fafc;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -23,18 +34,7 @@ import Footer from "./components/Footer.vue";
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  background: #e7e7ec;
+  line-height: 1.5;
   color: #2f4156;
-  line-height: 1.6;
-}
-
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.main-content {
-  flex: 1;
 }
 </style>

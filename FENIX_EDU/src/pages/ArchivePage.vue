@@ -15,7 +15,6 @@
                 class="nav-item"
                 :class="{ active: $route.path === '/' }"
               >
-                <span class="nav-icon">🏠</span>
                 <span class="nav-text">Главная</span>
               </router-link>
               <router-link
@@ -23,7 +22,6 @@
                 class="nav-item"
                 :class="{ active: $route.path === '/archive' }"
               >
-                <span class="nav-icon">📚</span>
                 <span class="nav-text">Архив обучения</span>
               </router-link>
               <router-link
@@ -31,7 +29,6 @@
                 class="nav-item"
                 :class="{ active: $route.path === '/messages' }"
               >
-                <span class="nav-icon">💬</span>
                 <span class="nav-text">Мессенджер</span>
               </router-link>
               <router-link
@@ -39,23 +36,16 @@
                 class="nav-item"
                 :class="{ active: $route.path === '/discussions' }"
               >
-                <span class="nav-icon">🗣️</span>
                 <span class="nav-text">Обсуждение</span>
               </router-link>
-              <router-link
-                to="/courses"
-                class="nav-item"
-                :class="{ active: $route.path === '/courses' }"
-              >
-                <span class="nav-icon">📖</span>
-                <span class="nav-text">Курсы</span>
+              <router-link to="/admin" class="nav-item">
+                <span class="nav-text">Админ-панель</span>
               </router-link>
             </nav>
           </div>
 
           <div class="sidebar-section">
             <button class="logout-btn" @click="handleLogout">
-              <span class="logout-icon">🚪</span>
               <span class="logout-text">Выход</span>
             </button>
           </div>
@@ -83,6 +73,15 @@
                   Завершенные
                 </button>
               </div>
+
+              <button
+                v-if="canCreateCourse"
+                class="create-course-btn"
+                @click="openCreateModal"
+              >
+                + Создать курс
+              </button>
+
               <div class="filter-container">
                 <button class="filter-btn" @click="toggleFilter">Фильтр</button>
                 <div class="filter-dropdown" v-if="showFilter">
@@ -139,7 +138,10 @@
                   <div class="course-body">
                     <h3 class="course-title">{{ course.title }}</h3>
                     <p class="course-description">
-                      {{ course.description }}
+                      {{
+                        course.description ||
+                        "Описание курса будет добавлено позже."
+                      }}
                     </p>
                     <div
                       class="course-progress"
@@ -148,14 +150,99 @@
                       <div class="progress-bar">
                         <div
                           class="progress-fill"
-                          :style="{ width: course.progress + '%' }"
+                          :style="{ width: (course.progress || 0) + '%' }"
                         ></div>
                       </div>
-                      <span class="progress-text">{{ course.progress }}%</span>
+                      <span class="progress-text"
+                        >{{ course.progress || 0 }}%</span
+                      >
                     </div>
                   </div>
                 </div>
+
+                <div
+                  v-if="!isLoading && !filteredCourses.length"
+                  class="empty-structure"
+                >
+                  Курсы по выбранным параметрам не найдены.
+                </div>
               </div>
+
+              <div v-if="isLoading" class="loading-text">
+                Загрузка курсов...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create course modal -->
+        <div
+          v-if="showCreateModal"
+          class="modal-overlay"
+          @click.self="closeCreateModal"
+        >
+          <div class="modal-card">
+            <div class="modal-header">
+              <h3 class="modal-title">Создать курс</h3>
+              <button class="modal-close" @click="closeCreateModal">✕</button>
+            </div>
+
+            <div class="modal-body">
+              <label class="modal-label">Название</label>
+              <input
+                v-model="newCourseName"
+                @input="validateName"
+                class="modal-input"
+                :class="{ 'input-error': nameError }"
+                type="text"
+                placeholder="Например: Математика 1"
+              />
+              <div v-if="nameError" class="modal-error name-error">
+                {{ nameError }}
+              </div>
+
+              <label class="modal-label">Описание (необязательно)</label>
+              <textarea
+                v-model="newCourseDescription"
+                class="modal-textarea"
+                placeholder="Кратко о курсе..."
+              ></textarea>
+
+              <label class="modal-label">Группа (кому доступен курс)</label>
+              <input
+                v-model="newCourseGroup"
+                class="modal-input"
+                type="text"
+                placeholder="Например: ИС-21"
+              />
+
+              <div v-if="createError" class="modal-error">
+                {{ createError }}
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                class="modal-btn secondary"
+                @click="closeCreateModal"
+                :disabled="isCreating"
+              >
+                Отмена
+              </button>
+              <button
+                class="modal-btn primary"
+                @click="createCourse"
+                :disabled="
+                  isCreating ||
+                  !newCourseName.trim() ||
+                  !newCourseGroup.trim() ||
+                  nameError ||
+                  newCourseName.trim().length < 3 ||
+                  newCourseName.trim().length > 100
+                "
+              >
+                {{ isCreating ? "Создание..." : "Создать" }}
+              </button>
             </div>
           </div>
         </div>
@@ -167,13 +254,123 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+
+const API_URL = "http://127.0.0.1:8000/api";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const activeTab = ref("inProgress");
 const showFilter = ref(false);
+const isLoading = ref(false);
 
-// Фильтры
+const showCreateModal = ref(false);
+const newCourseName = ref("");
+const newCourseDescription = ref("");
+const newCourseGroup = ref("");
+const isCreating = ref(false);
+const createError = ref("");
+const nameError = ref(""); // Новая переменная для ошибки названия
+
+const canCreateCourse = computed(() => {
+  const role = authStore.user?.role;
+  return role === "teacher" || role === "department_head" || role === "admin";
+});
+
+const openCreateModal = () => {
+  createError.value = "";
+  nameError.value = "";
+  newCourseName.value = "";
+  newCourseDescription.value = "";
+  newCourseGroup.value = authStore.user?.group || "";
+  showCreateModal.value = true;
+};
+
+const closeCreateModal = () => {
+  showCreateModal.value = false;
+  isCreating.value = false;
+  createError.value = "";
+  nameError.value = "";
+};
+
+// Валидация названия при вводе
+const validateName = () => {
+  const name = newCourseName.value.trim();
+  nameError.value = "";
+
+  if (!name) {
+    nameError.value = "Название курса обязательно";
+  } else if (name.length < 3) {
+    nameError.value = "Название курса должно содержать минимум 3 символа";
+  } else if (name.length > 100) {
+    nameError.value = "Название курса не может превышать 100 символов";
+  }
+};
+
+const createCourse = async () => {
+  const name = newCourseName.value.trim();
+  const targetGroup = newCourseGroup.value.trim();
+  const description = newCourseDescription.value.trim();
+
+  // Валидация названия курса
+  nameError.value = "";
+  if (!name) {
+    nameError.value = "Название курса обязательно";
+    return;
+  }
+  if (name.length < 3) {
+    nameError.value = "Название курса должно содержать минимум 3 символа";
+    return;
+  }
+  if (name.length > 100) {
+    nameError.value = "Название курса не может превышать 100 символов";
+    return;
+  }
+
+  if (!targetGroup) {
+    createError.value = "Укажите группу для курса";
+    return;
+  }
+
+  try {
+    isCreating.value = true;
+    createError.value = "";
+
+    const token = localStorage.getItem("access_token");
+
+    const resp = await fetch(`${API_URL}/courses`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        description: description || null,
+        target_group: targetGroup,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      createError.value =
+        `Ошибка создания курса: ${resp.status} ${text || ""}`.trim();
+      return;
+    }
+
+    closeCreateModal();
+    await loadCourses();
+    activeTab.value = "inProgress";
+  } catch (e) {
+    console.error("Ошибка создания курса:", e);
+    createError.value = "Ошибка сети при создании курса";
+  } finally {
+    isCreating.value = false;
+  }
+};
+
 const filters = ref([
   { id: 1, name: "Недавние", selected: false },
   { id: 2, name: "С высоким прогрессом", selected: false },
@@ -185,179 +382,66 @@ const filters = ref([
 const getFilterIcon = (filterName) => {
   switch (filterName) {
     case "Недавние":
-      return "🕒";
+      return "";
     case "С высоким прогрессом":
-      return "📈";
+      return "";
     case "С низким прогрессом":
-      return "📉";
+      return "";
     case "Популярные":
-      return "🔥";
+      return "";
     case "Новые":
-      return "🆕";
+      return "";
     default:
       return "✓";
   }
 };
 
-// Курсы с прогрессом и датами
-const courses = ref([
-  {
-    id: 1,
-    title: "Математический анализ",
-    description: "Основы математического анализа и дифференциальных уравнений",
-    status: "inProgress",
-    progress: 65,
-    date: "2024-01-15",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 2,
-    title: "Основы программирования",
-    description: "Введение в программирование на Python",
-    status: "inProgress",
-    progress: 85,
-    date: "2024-02-10",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 3,
-    title: "Веб-дизайн",
-    description: "Создание современных веб-интерфейсов",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-05",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 4,
-    title: "Английский язык B2",
-    description: "Деловой английский для IT-специалистов",
-    status: "inProgress",
-    progress: 45,
-    date: "2024-03-01",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 5,
-    title: "История искусств",
-    description: "Искусство от античности до современности",
-    status: "completed",
-    progress: 100,
-    date: "2023-11-20",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 6,
-    title: "Базы данных",
-    description: "Проектирование и оптимизация баз данных",
-    status: "inProgress",
-    progress: 30,
-    date: "2024-02-25",
-    isPopular: true,
-    isNew: true,
-  },
-  {
-    id: 7,
-    title: "Алгоритмы и структуры данных",
-    description: "Основные алгоритмы и структуры данных",
-    status: "inProgress",
-    progress: 70,
-    date: "2024-01-30",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 8,
-    title: "Мобильная разработка",
-    description: "Создание мобильных приложений",
-    status: "inProgress",
-    progress: 55,
-    date: "2024-02-15",
-    isPopular: false,
-    isNew: true,
-  },
-  {
-    id: 9,
-    title: "Машинное обучение",
-    description: "Введение в искусственный интеллект",
-    status: "completed",
-    progress: 100,
-    date: "2023-12-20",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 10,
-    title: "Философия",
-    description: "Основы философской мысли",
-    status: "completed",
-    progress: 100,
-    date: "2023-10-15",
-    isPopular: false,
-    isNew: false,
-  },
-  {
-    id: 11,
-    title: "Экономика",
-    description: "Основы экономической теории",
-    status: "completed",
-    progress: 100,
-    date: "2023-09-20",
-    isPopular: true,
-    isNew: false,
-  },
-  {
-    id: 12,
-    title: "Дизайн интерфейсов",
-    description: "Проектирование пользовательских интерфейсов",
-    status: "inProgress",
-    progress: 40,
-    date: "2024-03-05",
-    isPopular: false,
-    isNew: true,
-  },
-]);
+const courses = ref([]);
 
-// Фильтрованные курсы
+const mapBackendCourse = (c) => {
+  const status = c.status || "inProgress";
+  const progress = c.progress ?? 0;
+  const createdAt = c.created_at ? new Date(c.created_at) : new Date();
+
+  return {
+    id: c.id,
+    title: c.name,
+    description: c.description,
+    status,
+    progress,
+    date: createdAt.toISOString().slice(0, 10),
+    isPopular: false,
+    isNew: false,
+  };
+};
+
 const filteredCourses = computed(() => {
   let result = courses.value.filter(
-    (course) => course.status === activeTab.value
+    (course) => course.status === activeTab.value,
   );
 
-  // Применяем фильтры, если выбраны
   const selectedFilters = filters.value
     .filter((f) => f.selected)
     .map((f) => f.name);
 
   if (selectedFilters.length > 0) {
-    // Фильтрация по выбранным критериям
     result = result.filter((course) => {
       return selectedFilters.some((filter) => {
         switch (filter) {
-          case "Недавние":
-            // Показываем курсы, добавленные в последние 30 дней
+          case "Недавние": {
             const courseDate = new Date(course.date);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             return courseDate >= thirtyDaysAgo;
-
+          }
           case "С высоким прогрессом":
-            return course.progress >= 70;
-
+            return (course.progress || 0) >= 70;
           case "С низким прогрессом":
-            return course.progress <= 30;
-
+            return (course.progress || 0) <= 30;
           case "Популярные":
             return course.isPopular;
-
           case "Новые":
             return course.isNew;
-
           default:
             return true;
         }
@@ -386,23 +470,59 @@ const closeFilterOnClickOutside = (event) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener("click", closeFilterOnClickOutside);
+  await loadCourses();
 });
+
 onUnmounted(() => {
   document.removeEventListener("click", closeFilterOnClickOutside);
 });
 
-// Открытие курса
-const openCourse = (courseId) => {
-  console.log("Открываем курс из архива:", courseId);
-  // Здесь надо добавить навигацию на страницу курса
+const loadCourses = async () => {
+  try {
+    isLoading.value = true;
+    const token = localStorage.getItem("access_token");
+
+    const resp = await fetch(`${API_URL}/courses`, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        Accept: "application/json",
+      },
+    });
+
+    if (!resp.ok) {
+      console.error("Ошибка загрузки курсов:", resp.status);
+      return;
+    }
+
+    const data = await resp.json();
+    courses.value = data.map(mapBackendCourse);
+  } catch (e) {
+    console.error("Ошибка загрузки курсов:", e);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-// Выход из системы
+const openCourse = (courseId) => {
+  const user = authStore.user;
+
+  if (
+    user?.role === "teacher" ||
+    user?.role === "department_head" ||
+    user?.role === "admin"
+  ) {
+    router.push({ name: "CourseViewEdit", params: { id: courseId } });
+  } else {
+    router.push({ name: "CourseView", params: { id: courseId } });
+  }
+};
+
 const handleLogout = () => {
   localStorage.removeItem("isAuthenticated");
   localStorage.removeItem("userData");
+  localStorage.removeItem("access_token");
   router.push("/login");
 };
 </script>
@@ -825,7 +945,6 @@ const handleLogout = () => {
   flex: 1;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -856,6 +975,177 @@ const handleLogout = () => {
   color: #2f4156;
   font-weight: 600;
   min-width: 35px;
+}
+
+/* Стили для модального окна */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.modal-body {
+  margin-bottom: 1.5rem;
+}
+
+.modal-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2f4156;
+  margin-bottom: 0.5rem;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.modal-input.input-error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.modal-input.input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+
+.name-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.modal-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-error {
+  font-size: 0.85rem;
+  color: #dc2626;
+  padding: 0.5rem;
+  background-color: #fef2f2;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.modal-btn.secondary {
+  background: #e7e7ec;
+  color: #2f4156;
+}
+
+.modal-btn.secondary:hover:not(:disabled) {
+  background: #d5d5dd;
+}
+
+.modal-btn.primary {
+  background: #2f4156;
+  color: white;
+}
+
+.modal-btn.primary:hover:not(:disabled) {
+  background: #1a2a3a;
+}
+
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-course-btn {
+  padding: 0.5rem 1.5rem;
+  background: #2f4156;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.create-course-btn:hover {
+  background: #1a2a3a;
+}
+
+.empty-structure {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+.loading-text {
+  text-align: center;
+  padding: 1rem;
+  color: #4a5568;
 }
 
 /* Адаптивность */
@@ -923,6 +1213,11 @@ const handleLogout = () => {
   .course-description {
     font-size: 0.9rem;
   }
+
+  .modal-card {
+    width: 95%;
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -947,6 +1242,14 @@ const handleLogout = () => {
 
   .course-image {
     height: 140px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-btn {
+    width: 100%;
   }
 }
 </style>

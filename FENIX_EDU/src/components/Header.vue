@@ -10,7 +10,7 @@
         </router-link>
       </div>
 
-      <div class="header__search" v-if="!isAuthPage">
+      <div class="header__search" v-if="showSearch">
         <div class="search-box">
           <input
             type="text"
@@ -24,15 +24,30 @@
       </div>
 
       <div class="header__actions">
-        <button class="notification-btn" v-if="!isAuthPage">
+        <button
+          class="notification-btn"
+          v-if="!isAuthPage && isAuthenticated"
+          @click="handleNotificationClick"
+        >
           <span class="notification-icon">🔔</span>
           <span class="notification-badge" v-if="notificationsCount > 0">
             {{ notificationsCount }}
           </span>
         </button>
 
-        <div class="user-name" v-if="isAuthenticated && !isAuthPage">
-          {{ userName }}
+        <!-- Информация о пользователе -->
+        <div class="user-info-display" v-if="isAuthenticated && !isAuthPage">
+          <div class="user-role-badge" :class="userRoleClass">
+            {{ formattedUserRole }}
+          </div>
+          <div class="user-name-display">
+            {{ userName }}
+          </div>
+
+          <!-- Ссылка на админ-панель для админов -->
+          <router-link v-if="isAdmin" to="/admin" class="admin-panel-link">
+            <span class="admin-text">Админ-панель</span>
+          </router-link>
         </div>
 
         <div
@@ -71,11 +86,11 @@
         >
           <div class="profile-info-header">
             <div class="profile-avatar">
-              <img :src="userLogoUrl" alt="User Avatar" class="avatar-image" />
+              <div class="avatar-initials">{{ userInitials }}</div>
             </div>
             <div class="profile-main-info">
               <h3 class="profile-name">{{ userName }}</h3>
-              <div class="profile-role">{{ userRole }}</div>
+              <div class="profile-role">{{ formattedUserRole }}</div>
               <div class="profile-email">{{ userEmail }}</div>
             </div>
             <button class="close-btn" @click.stop="showProfileInfo = false">
@@ -87,51 +102,28 @@
             <div class="info-section">
               <h4 class="section-title">Учебная информация</h4>
               <div class="info-grid">
-                <div class="info-item">
+                <div class="info-item" v-if="userGroup">
                   <span class="info-label">Группа:</span>
                   <span class="info-value">{{ userGroup }}</span>
                 </div>
-                <div class="info-item">
+                <div class="info-item" v-if="userCourse">
                   <span class="info-label">Курс:</span>
                   <span class="info-value">{{ userCourse }}</span>
                 </div>
-                <div class="info-item">
+                <div class="info-item" v-if="userFaculty">
                   <span class="info-label">Факультет:</span>
                   <span class="info-value">{{ userFaculty }}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Статус:</span>
-                  <span class="info-value status-active">Активный</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="info-section">
-              <h4 class="section-title">Статистика</h4>
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <div class="stat-value">8</div>
-                  <div class="stat-label">Курсов</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">4</div>
-                  <div class="stat-label">В процессе</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">75%</div>
-                  <div class="stat-label">Прогресс</div>
+                  <span class="info-value status-active">{{ userStatus }}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="profile-info-footer">
-            <router-link to="/profile" class="profile-link">
-              <span class="link-icon">👤</span>
-              <span class="link-text">Мой профиль</span>
-            </router-link>
             <button class="btn btn-logout" @click="handleLogout">
-              <span class="btn-icon">🚪</span>
               <span class="btn-text">Выйти</span>
             </button>
           </div>
@@ -142,33 +134,96 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useMessengerStore } from "@/stores/messenger";
+import { useAuthStore } from "@/stores/auth";
 import userLogoCat from "@/assets/images/cat-logo.png";
 
 const router = useRouter();
 const route = useRoute();
-const notificationsCount = ref(3);
-const isAuthenticated = ref(false);
+const authStore = useAuthStore();
+const messengerStore = useMessengerStore();
+
+const notificationsCount = computed(() => {
+  return messengerStore.totalUnread;
+});
+
 const showProfileInfo = ref(false);
 const userLogo = ref(null);
 const profilePanel = ref(null);
 
 const userLogoUrl = userLogoCat;
 
-// Данные пользователя
-const userData = ref({
-  firstName: "Иван",
-  lastName: "Иванов",
-  email: "student@fenixedu.ru",
-  role: "student",
-  group: "Б9124-01.03.02сп",
-  course: "2 курс",
-  faculty: "Прикладная математика и информатика",
+// Получаем данные из authStore
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const user = computed(() => authStore.user);
+const isAdmin = computed(() => authStore.isAdmin);
+
+// Определяем страницы, где должен отображаться поиск
+const showSearch = computed(() => {
+  const currentPath = route.path;
+  const searchPages = [
+    "/", // Главная страница
+    "/dashboard", // Дашборд (если там список курсов)
+    "/learning-archive", // Архив обучения
+    "/archive", // Архив (альтернативное название)
+  ];
+
+  return (
+    !isAuthPage.value &&
+    isAuthenticated.value &&
+    searchPages.includes(currentPath)
+  );
 });
 
+// Компьютед свойства для пользователя
+const userName = computed(() => {
+  return user.value?.full_name || "Пользователь";
+});
+
+const userInitials = computed(() => {
+  if (!user.value?.full_name) return "";
+  return user.value.full_name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+});
+
+const formattedUserRole = computed(() => {
+  const roles = {
+    student: "Студент",
+    teacher: "Преподаватель",
+    department_head: "Зав. кафедрой",
+    admin: "Администратор",
+  };
+  return roles[user.value?.role] || user.value?.role || "Пользователь";
+});
+
+const userRoleClass = computed(() => {
+  return `role-${user.value?.role || "student"}`;
+});
+
+const userEmail = computed(() => user.value?.email || "");
+const userGroup = computed(() => user.value?.group || "");
+const userCourse = computed(() => user.value?.course || "");
+const userFaculty = computed(() => user.value?.faculty || "");
+const userStatus = computed(() => {
+  const statuses = {
+    pending: "Ожидает",
+    active: "Активный",
+    rejected: "Отклонен",
+    blocked: "Заблокирован",
+  };
+  return statuses[user.value?.status] || "Активный";
+});
+
+const hasNotifications = computed(() => notificationsCount.value > 0);
+
 const isAuthPage = computed(() => {
-  return route.path === "/login" || route.path === "/register";
+  const authPages = ["/login", "/register", "/", "/waiting"];
+  return authPages.includes(route.path);
 });
 
 const isLoginPage = computed(() => {
@@ -178,20 +233,6 @@ const isLoginPage = computed(() => {
 const isRegisterPage = computed(() => {
   return route.path === "/register";
 });
-
-const userName = computed(() => {
-  return `${userData.value.firstName} ${userData.value.lastName}`;
-});
-
-const userRole = computed(() => {
-  return userData.value.role === "teacher" ? "Преподаватель" : "Студент";
-});
-
-const userEmail = computed(() => userData.value.email);
-const userGroup = computed(() => userData.value.group);
-const userCourse = computed(() => userData.value.course);
-const userFaculty = computed(() => userData.value.faculty);
-const hasNotifications = computed(() => notificationsCount.value > 0);
 
 const panelStyle = computed(() => {
   if (!userLogo.value) return {};
@@ -203,25 +244,43 @@ const panelStyle = computed(() => {
   };
 });
 
-// Проверка авторизации
-onMounted(() => {
-  isAuthenticated.value = localStorage.getItem("isAuthenticated") === "true";
-
-  const savedData = localStorage.getItem("userData");
-  if (savedData) {
-    try {
-      const parsedData = JSON.parse(savedData);
-      userData.value = { ...userData.value, ...parsedData };
-    } catch (error) {
-      console.error("Ошибка при загрузке данных пользователя:", error);
+// Наблюдаем за изменениями авторизации
+watch(
+  () => authStore.isAuthenticated,
+  (newVal) => {
+    if (!newVal) {
+      showProfileInfo.value = false;
+    } else {
+      loadNotifications();
     }
+  },
+  { immediate: true },
+);
+
+let notificationInterval;
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+
+  // Загружаем данные пользователя если токен есть
+  if (localStorage.getItem("access_token")) {
+    authStore.getCurrentUser().catch(console.error);
+    loadNotifications();
   }
 
-  document.addEventListener("click", handleClickOutside);
+  // Проверяем новые сообщения каждые 30 секунд
+  notificationInterval = setInterval(() => {
+    if (authStore.isAuthenticated) {
+      loadNotifications();
+    }
+  }, 30000);
 });
 
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
+  if (notificationInterval) {
+    clearInterval(notificationInterval);
+  }
 });
 
 const handleClickOutside = (event) => {
@@ -240,20 +299,31 @@ const toggleProfileInfo = () => {
     showProfileInfo.value = !showProfileInfo.value;
   }
 };
-
-const handleLogout = () => {
-  localStorage.removeItem("isAuthenticated");
-  localStorage.removeItem("userData");
-  isAuthenticated.value = false;
-  showProfileInfo.value = false;
-  router.push("/login");
+const handleNotificationClick = () => {
+  router.push("/messenger");
 };
 
-window.addEventListener("storage", (event) => {
-  if (event.key === "isAuthenticated") {
-    isAuthenticated.value = event.newValue === "true";
+const handleLogout = async () => {
+  try {
+    await authStore.logout();
+    showProfileInfo.value = false;
+    if (route.meta.requiresAuth) {
+      router.push("/login");
+    }
+  } catch (error) {
+    console.error("Ошибка выхода:", error);
   }
-});
+};
+
+const loadNotifications = async () => {
+  if (isAuthenticated.value) {
+    try {
+      await messengerStore.fetchConversations();
+    } catch (error) {
+      console.error("Ошибка загрузки уведомлений:", error);
+    }
+  }
+};
 </script>
 
 <style scoped>
@@ -311,6 +381,7 @@ window.addEventListener("storage", (event) => {
 .header__search {
   flex: 1;
   max-width: 400px;
+  transition: opacity 0.3s ease;
 }
 
 .search-box {
@@ -399,14 +470,77 @@ window.addEventListener("storage", (event) => {
   font-weight: 600;
 }
 
-.user-name {
-  font-weight: 600;
-  color: #2f4156;
-  font-size: 0.95rem;
+/* Стили для отображения информации о пользователе */
+.user-info-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem 1rem;
   background: rgba(200, 218, 232, 0.2);
   border-radius: 8px;
   border: 1px solid rgba(200, 218, 232, 0.4);
+}
+
+.user-role-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-student {
+  background: #bee3f8;
+  color: #2c5282;
+}
+
+.role-teacher {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.role-department_head {
+  background: #e9d8fd;
+  color: #553c9a;
+}
+
+.role-admin {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.user-name-display {
+  font-weight: 600;
+  color: #2f4156;
+  font-size: 0.95rem;
+}
+
+.admin-panel-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #2f4156;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.admin-panel-link:hover {
+  background: #1a2530;
+  transform: translateY(-1px);
+}
+
+.admin-icon {
+  font-size: 1rem;
+}
+
+.admin-text {
+  font-size: 0.85rem;
 }
 
 .user-logo-container {
@@ -489,11 +623,11 @@ window.addEventListener("storage", (event) => {
 .profile-info-panel {
   position: absolute;
   right: 0;
-  width: 350px;
+  width: 320px; /* Слегка уменьшил ширину */
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  padding: 1.5rem;
+  padding: 1.25rem; /* Уменьшил padding */
   z-index: 1001;
   border: 1px solid rgba(212, 185, 187, 0.3);
   animation: slideDown 0.3s ease-out;
@@ -504,6 +638,7 @@ window.addEventListener("storage", (event) => {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -513,52 +648,69 @@ window.addEventListener("storage", (event) => {
 .profile-info-header {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
+  padding-bottom: 0.75rem; /* Уменьшил отступ */
   border-bottom: 1px solid #e7e7ec;
   position: relative;
 }
 
 .profile-avatar {
-  width: 60px;
-  height: 60px;
-  margin-right: 1rem;
+  width: 50px; /* Уменьшил размер */
+  height: 50px;
+  margin-right: 0.75rem; /* Уменьшил отступ */
   flex-shrink: 0;
 }
 
-.avatar-image {
+.avatar-initials {
   width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #f0c3d1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem; /* Уменьшил размер шрифта */
+  border: 2px solid #f0c3d1; /* Уменьшил толщину рамки */
 }
 
 .profile-main-info {
   flex: 1;
+  min-width: 0; /* Чтобы текст не вылезал */
 }
 
 .profile-name {
-  font-size: 1.25rem;
+  font-size: 1rem; /* Уменьшил размер */
   color: #2f4156;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.2rem 0; /* Уменьшил отступ */
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-role {
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Уменьшил размер */
   color: #667eea;
   font-weight: 500;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem; /* Уменьшил отступ */
   background: rgba(102, 126, 234, 0.1);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.4rem; /* Уменьшил padding */
   border-radius: 4px;
   display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .profile-email {
-  font-size: 0.85rem;
+  font-size: 0.75rem; /* Уменьшил размер */
   color: #718096;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .close-btn {
@@ -567,12 +719,12 @@ window.addEventListener("storage", (event) => {
   right: 0;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem; /* Уменьшил размер */
   color: #a0aec0;
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 25px; /* Уменьшил размер */
+  height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -586,18 +738,18 @@ window.addEventListener("storage", (event) => {
 }
 
 .profile-info-content {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
 }
 
 .info-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Уменьшил отступ */
 }
 
 .section-title {
-  font-size: 0.95rem;
+  font-size: 0.85rem; /* Уменьшил размер */
   color: #4a5568;
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem; /* Уменьшил отступ */
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -605,28 +757,34 @@ window.addEventListener("storage", (event) => {
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.5rem; /* Уменьшил gap */
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
+  padding: 0.5rem; /* Уменьшил padding */
   background: rgba(200, 218, 232, 0.1);
-  border-radius: 8px;
+  border-radius: 6px; /* Уменьшил радиус */
   border: 1px solid rgba(200, 218, 232, 0.2);
 }
 
 .info-label {
   font-weight: 600;
   color: #2f4156;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+  font-size: 0.7rem; /* Уменьшил размер */
+  margin-bottom: 0.15rem; /* Уменьшил отступ */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .info-value {
   color: #4a5568;
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Уменьшил размер */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .info-value.status-active {
@@ -634,68 +792,9 @@ window.addEventListener("storage", (event) => {
   font-weight: 500;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  text-align: center;
-}
-
-.stat-item {
-  padding: 0.75rem;
-  background: linear-gradient(
-    135deg,
-    rgba(240, 195, 209, 0.2) 0%,
-    rgba(200, 218, 232, 0.2) 100%
-  );
-  border-radius: 8px;
-  border: 1px solid rgba(212, 185, 187, 0.3);
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #2f4156;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.8rem;
-  color: #718096;
-}
-
 .profile-info-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
+  padding-top: 0.75rem; /* Уменьшил отступ */
   border-top: 1px solid #e7e7ec;
-}
-
-.profile-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(200, 218, 232, 0.2);
-  border-radius: 8px;
-  text-decoration: none;
-  color: #2f4156;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.profile-link:hover {
-  background: rgba(200, 218, 232, 0.4);
-  transform: translateX(5px);
-}
-
-.link-icon {
-  font-size: 1.1rem;
-}
-
-.link-text {
-  font-size: 0.95rem;
 }
 
 .btn-logout {
@@ -703,16 +802,16 @@ window.addEventListener("storage", (event) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 0.5rem; /* Уменьшил gap */
+  padding: 0.6rem; /* Уменьшил padding */
   background: #f0c3d1;
   color: #2f4156;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px; /* Уменьшил радиус */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* Уменьшил размер */
 }
 
 .btn-logout:hover {
@@ -721,12 +820,8 @@ window.addEventListener("storage", (event) => {
   box-shadow: 0 4px 12px rgba(211, 165, 177, 0.3);
 }
 
-.btn-icon {
-  font-size: 1.1rem;
-}
-
 .btn-text {
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* Уменьшил размер */
 }
 
 /* Адаптивность */
@@ -750,8 +845,23 @@ window.addEventListener("storage", (event) => {
     font-size: 1.25rem;
   }
 
-  .user-name {
+  .user-info-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .user-name-display {
+    font-size: 0.9rem;
+  }
+
+  .admin-text {
     display: none;
+  }
+
+  .admin-panel-link {
+    padding: 0.4rem;
   }
 
   .auth-btn__text {
@@ -771,6 +881,24 @@ window.addEventListener("storage", (event) => {
   .profile-info-panel {
     width: 280px;
     right: -20px;
+    padding: 1rem;
+  }
+
+  .profile-avatar {
+    width: 45px;
+    height: 45px;
+  }
+
+  .profile-name {
+    font-size: 0.9rem;
+  }
+
+  .profile-role {
+    font-size: 0.75rem;
+  }
+
+  .profile-email {
+    font-size: 0.7rem;
   }
 }
 
@@ -794,6 +922,16 @@ window.addEventListener("storage", (event) => {
   .user-logo-container {
     width: 36px;
     height: 36px;
+  }
+
+  .user-info-display {
+    display: none;
+  }
+
+  .profile-info-panel {
+    width: 250px;
+    right: -10px;
+    padding: 0.75rem;
   }
 }
 </style>

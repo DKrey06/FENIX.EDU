@@ -24,7 +24,6 @@
               <div class="form-group">
                 <label for="firstName" class="form-label">Имя</label>
                 <div class="input-group">
-                  <span class="input-icon">👤</span>
                   <input
                     v-model="registerData.firstName"
                     type="text"
@@ -43,7 +42,6 @@
               <div class="form-group">
                 <label for="lastName" class="form-label">Фамилия</label>
                 <div class="input-group">
-                  <span class="input-icon">👤</span>
                   <input
                     v-model="registerData.lastName"
                     type="text"
@@ -63,7 +61,6 @@
             <div class="form-group">
               <label for="email" class="form-label">Email</label>
               <div class="input-group">
-                <span class="input-icon">📧</span>
                 <input
                   v-model="registerData.email"
                   type="email"
@@ -82,7 +79,6 @@
             <div class="form-group">
               <label for="password" class="form-label">Пароль</label>
               <div class="input-group">
-                <span class="input-icon">🔒</span>
                 <input
                   v-model="registerData.password"
                   :type="showPassword ? 'text' : 'password'"
@@ -129,7 +125,6 @@
                 >Подтверждение пароля</label
               >
               <div class="input-group">
-                <span class="input-icon">🔒</span>
                 <input
                   v-model="registerData.confirmPassword"
                   :type="showConfirmPassword ? 'text' : 'password'"
@@ -202,22 +197,44 @@
               </div>
             </div>
 
-            <div class="terms-agreement">
-              <input
-                type="checkbox"
-                id="terms"
-                v-model="registerData.acceptTerms"
-                class="checkbox"
-                :class="{ error: errors.acceptTerms }"
-              />
-              <label for="terms" class="checkbox-label">
-                Я соглашаюсь с
-                <a href="#" class="terms-link">условиями использования</a> и
-                <a href="#" class="terms-link">политикой конфиденциальности</a>
-              </label>
+            <div class="form-group" v-if="registerData.role === 'student'">
+              <label for="course" class="form-label">Курс</label>
+              <div class="input-group">
+                <select
+                  v-model="registerData.course"
+                  id="course"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.course }"
+                >
+                  <option value="">Выберите курс</option>
+                  <option value="1">1 курс</option>
+                  <option value="2">2 курс</option>
+                  <option value="3">3 курс</option>
+                  <option value="4">4 курс</option>
+                </select>
+              </div>
+              <div v-if="errors.course" class="error-message">
+                {{ errors.course }}
+              </div>
             </div>
-            <div v-if="errors.acceptTerms" class="error-message">
-              {{ errors.acceptTerms }}
+
+            <div class="form-group" v-if="registerData.role === 'student'">
+              <label for="group" class="form-label">Группа</label>
+              <div class="input-group">
+                <input
+                  v-model="registerData.group"
+                  type="text"
+                  id="group"
+                  placeholder="Например: ИС-21-1"
+                  required
+                  class="form-input"
+                  :class="{ error: errors.group }"
+                />
+              </div>
+              <div v-if="errors.group" class="error-message">
+                {{ errors.group }}
+              </div>
             </div>
 
             <button type="submit" class="submit-btn" :disabled="isLoading">
@@ -241,8 +258,10 @@
 <script setup>
 import { ref, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 // Данные формы
 const registerData = reactive({
@@ -252,7 +271,8 @@ const registerData = reactive({
   password: "",
   confirmPassword: "",
   role: "student",
-  acceptTerms: false,
+  course: "",
+  group: "",
 });
 
 // Ошибки валидации
@@ -262,7 +282,8 @@ const errors = reactive({
   email: "",
   password: "",
   confirmPassword: "",
-  acceptTerms: "",
+  course: "",
+  group: "",
 });
 
 // Состояния
@@ -300,7 +321,7 @@ watch(
     } else {
       errors.password = "";
     }
-  }
+  },
 );
 
 watch(
@@ -314,7 +335,7 @@ watch(
     } else {
       errors.confirmPassword = "";
     }
-  }
+  },
 );
 
 // Обработчик регистрации
@@ -358,64 +379,100 @@ const handleRegister = async () => {
     isValid = false;
   }
 
-  if (!registerData.acceptTerms) {
-    errors.acceptTerms = "Необходимо принять условия использования";
-    isValid = false;
+  if (registerData.role === "student") {
+    if (!registerData.course) {
+      errors.course = "Пожалуйста, выберите курс";
+      isValid = false;
+    }
+    if (!registerData.group.trim()) {
+      errors.group = "Пожалуйста, введите группу";
+      isValid = false;
+    }
   }
 
   if (!isValid) return;
 
-  // Симуляция запроса к API
   isLoading.value = true;
 
   try {
-    // В реальном приложении здесь был бы запрос к API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Объединяем имя и фамилию
+    const fullName =
+      `${registerData.firstName} ${registerData.lastName}`.trim();
 
-    // Сохраняем данные пользователя
-    const userData = {
-      firstName: registerData.firstName,
-      lastName: registerData.lastName,
+    // Вызываем регистрацию
+    await authStore.register({
+      full_name: fullName,
       email: registerData.email,
+      password: registerData.password,
       role: registerData.role,
-      createdAt: new Date().toISOString(),
-    };
+      course: registerData.role === "student" ? registerData.course : null,
+      group: registerData.role === "student" ? registerData.group : null,
+    });
 
-    localStorage.setItem("userData", JSON.stringify(userData));
-    localStorage.setItem("isAuthenticated", "true");
+    // После успешной регистрации сразу перенаправляем на страницу ожидания
+    alert(
+      "Регистрация успешна! Ваш аккаунт ожидает подтверждения администратором.",
+    );
 
-    // Показываем успешное сообщение
-    alert("Регистрация успешна! Добро пожаловать в FENIX.EDU!");
+    // Очищаем поля формы
+    Object.keys(registerData).forEach((key) => {
+      if (key !== "role") {
+        if (typeof registerData[key] === "string") {
+          registerData[key] = "";
+        }
+      }
+    });
+    registerData.role = "student";
 
-    // Перенаправляем на главную
-    router.push("/");
+    // Перенаправляем на страницу ожидания
+    router.push("/waiting-approval");
   } catch (error) {
     console.error("Ошибка регистрации:", error);
 
-    // В реальном приложении здесь была бы обработка ошибок от сервера
-    if (error.message?.includes("email")) {
-      errors.email = "Этот email уже используется";
-    } else {
-      errors.email = "Произошла ошибка при регистрации";
+    // Безопасная обработка ошибок
+    let errorMessage = "Произошла ошибка при регистрации";
+
+    if (error.response) {
+      const responseData = error.response.data;
+
+      if (responseData) {
+        if (responseData.detail) {
+          if (Array.isArray(responseData.detail)) {
+            responseData.detail.forEach((err) => {
+              if (err.loc && err.loc[1]) {
+                const field = err.loc[1];
+                errors[field] = err.msg;
+              }
+            });
+            return;
+          } else if (typeof responseData.detail === "string") {
+            errorMessage = responseData.detail;
+          }
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.email && Array.isArray(responseData.email)) {
+          errors.email = responseData.email[0];
+          return;
+        } else if (
+          responseData.password &&
+          Array.isArray(responseData.password)
+        ) {
+          errors.password = responseData.password[0];
+          return;
+        }
+      }
+    } else if (error.request) {
+      errorMessage = "Сервер не отвечает. Проверьте подключение к интернету.";
+    } else if (error.message) {
+      errorMessage = error.message;
     }
+
+    alert(errorMessage);
+    errors.email = errorMessage;
   } finally {
     isLoading.value = false;
   }
 };
-
-// Автозаполнение для демо
-const fillDemoData = () => {
-  registerData.firstName = "Иван";
-  registerData.lastName = "Иванов";
-  registerData.email = "student@fenixedu.ru";
-  registerData.password = "Demo123!";
-  registerData.confirmPassword = "Demo123!";
-  registerData.role = "student";
-  registerData.acceptTerms = true;
-};
-
-// Вызываем для демо
-fillDemoData();
 </script>
 
 <style scoped>
@@ -442,7 +499,7 @@ fillDemoData();
 .auth-illustration {
   background: linear-gradient(135deg, #4c51bf 0%, #805ad5 100%);
   color: white;
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -454,62 +511,44 @@ fillDemoData();
 }
 
 .illustration-icon {
-  font-size: 4rem;
-  margin-bottom: 2rem;
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
   display: inline-block;
 }
 
 .illustration-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   line-height: 1.3;
 }
 
 .illustration-text {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin-bottom: 3rem;
-  line-height: 1.6;
-}
-
-.features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  text-align: left;
-}
-
-.feature {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   font-size: 1rem;
-}
-
-.feature-icon {
-  font-size: 1.25rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+  line-height: 1.5;
 }
 
 .auth-form-wrapper {
-  padding: 4rem;
+  padding: 3rem;
   display: flex;
   align-items: center;
 }
 
 .auth-form {
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   margin: 0 auto;
 }
 
 .form-header {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
 .form-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.5rem;
@@ -517,13 +556,13 @@ fillDemoData();
 
 .form-subtitle {
   color: #718096;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .name-group {
@@ -533,15 +572,15 @@ fillDemoData();
 }
 
 .form-group {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #4a5568;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .input-group {
@@ -550,20 +589,12 @@ fillDemoData();
   align-items: center;
 }
 
-.input-icon {
-  position: absolute;
-  left: 1rem;
-  font-size: 1.25rem;
-  color: #a0aec0;
-  z-index: 1;
-}
-
 .form-input {
   width: 100%;
-  padding: 0.875rem 1rem 0.875rem 3rem;
+  padding: 0.75rem 1rem;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   transition: all 0.3s;
   background: white;
 }
@@ -580,19 +611,23 @@ fillDemoData();
 
 .password-toggle {
   position: absolute;
-  right: 1rem;
+  right: 0.75rem;
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   cursor: pointer;
   color: #a0aec0;
   padding: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .error-message {
   color: #fc8181;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  min-height: 1.2rem;
 }
 
 /* Требования к паролю */
@@ -671,11 +706,11 @@ fillDemoData();
 .role-content {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .role-icon {
-  font-size: 2rem;
+  font-size: 1.8rem;
 }
 
 .role-info {
@@ -685,7 +720,7 @@ fillDemoData();
 .role-title {
   font-weight: 600;
   color: #2d3748;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .role-description {
@@ -694,55 +729,17 @@ fillDemoData();
   margin-top: 0.25rem;
 }
 
-.terms-agreement {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-
-.checkbox {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.25rem;
-  flex-shrink: 0;
-}
-
-.checkbox.error {
-  border-color: #fc8181;
-}
-
-.checkbox-label {
-  font-size: 0.875rem;
-  color: #4a5568;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.terms-link {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.terms-link:hover {
-  text-decoration: underline;
-}
-
 .submit-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  padding: 1rem;
-  border-radius: 10px;
-  font-size: 1rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -764,6 +761,7 @@ fillDemoData();
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -771,14 +769,14 @@ fillDemoData();
 
 .auth-footer {
   text-align: center;
-  padding-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid #e2e8f0;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .footer-text {
   color: #718096;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .auth-link {
@@ -799,11 +797,11 @@ fillDemoData();
   }
 
   .auth-illustration {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 
   .auth-form-wrapper {
-    padding: 3rem;
+    padding: 2.5rem;
   }
 }
 
@@ -815,9 +813,7 @@ fillDemoData();
   .role-selector {
     flex-direction: column;
   }
-}
 
-@media (max-width: 576px) {
   .auth-page {
     padding: 1rem;
   }
@@ -835,6 +831,41 @@ fillDemoData();
   }
 
   .form-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-illustration {
+    padding: 1.5rem;
+  }
+
+  .auth-form-wrapper {
+    padding: 1.5rem;
+  }
+
+  .illustration-title {
+    font-size: 1.3rem;
+  }
+
+  .form-title {
+    font-size: 1.3rem;
+  }
+
+  .illustration-icon {
+    font-size: 3rem;
+  }
+
+  .form-input {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+  }
+
+  .role-option {
+    padding: 0.75rem;
+  }
+
+  .role-icon {
     font-size: 1.5rem;
   }
 }

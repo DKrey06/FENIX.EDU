@@ -1,0 +1,1112 @@
+<template>
+  <div class="course-detail-page">
+    <div class="course-header">
+      <div class="breadcrumb">
+        <router-link to="/archive" class="breadcrumb-link">
+          <span class="breadcrumb-icon">←</span>
+          Назад к архиву
+        </router-link>
+      </div>
+      <div class="header-content">
+        <h1 class="course-title">
+          {{ currentCourse.title || currentCourse.name }}
+        </h1>
+        <div class="course-meta">
+          <div class="meta-item">
+            <span
+              class="meta-dot"
+              :class="
+                currentCourse.status === 'inProgress'
+                  ? 'dot-progress'
+                  : 'dot-done'
+              "
+            ></span>
+            <span class="meta-text">
+              {{
+                currentCourse.status === "inProgress"
+                  ? "В процессе"
+                  : "Завершен"
+              }}
+            </span>
+          </div>
+          <div class="meta-item" v-if="currentCourse.status === 'inProgress'">
+            <span class="meta-label">Прогресс:</span>
+            <span class="meta-value">{{ currentCourse.progress || 0 }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="course-content">
+      <div class="course-sections">
+        <div class="sections-header">
+          <h2 class="sections-title">Содержание курса</h2>
+          <button v-if="canEdit" class="edit-btn" @click="handleEdit">
+            Редактировать
+          </button>
+        </div>
+
+        <div class="sections-list">
+          <div
+            v-for="section in sections"
+            :key="section.id"
+            class="section-item"
+            :class="{ 'section-active': activeSection === section.id }"
+          >
+            <div class="section-header" @click="toggleSection(section.id)">
+              <div class="section-title">
+                <span class="section-number">Раздел {{ section.number }}.</span>
+                <span class="section-name">{{ section.title }}</span>
+              </div>
+              <span class="section-toggle">
+                {{ activeSection === section.id ? "Скрыть" : "Показать" }}
+              </span>
+            </div>
+
+            <div class="subsection-list" v-if="activeSection === section.id">
+              <div
+                v-for="subsection in section.subsections"
+                :key="subsection.id"
+                class="subsection-item"
+              >
+                <div class="subsection-main">
+                  <span class="subsection-icon">{{ subsection.icon }}</span>
+                  <div class="subsection-text">
+                    <div class="subsection-name">{{ subsection.title }}</div>
+                    <div class="subsection-description">
+                      {{
+                        assignmentsMap[subsection.id]?.description ||
+                        "Материалы и описание задания пока не заполнены."
+                      }}
+                    </div>
+                  </div>
+                  <span class="subsection-status" :class="subsection.status">
+                    {{ statusText(subsection.status) }}
+                  </span>
+                </div>
+
+                <!-- материалы задания (из БД) -->
+                <div
+                  v-if="assignmentsMap[subsection.id]?.attachments?.length"
+                  class="subsection-files"
+                >
+                  <div
+                    v-for="file in assignmentsMap[subsection.id].attachments"
+                    :key="'a-' + file.id"
+                    class="file-row"
+                    role="button"
+                    tabindex="0"
+                    @click="handleFileClick(file)"
+                    @keydown.enter.prevent="handleFileClick(file)"
+                  >
+                    <button
+                      class="file-thumb"
+                      v-if="isImage(file.name) && file.url"
+                      type="button"
+                      @click.stop="openImage(file.url, file.name)"
+                    >
+                      <img
+                        :src="normalizeFileUrl(file.url)"
+                        :alt="file.name"
+                        class="thumb-img"
+                      />
+                    </button>
+                    <div class="file-icon" v-else>📎</div>
+
+                    <div class="file-info">
+                      <div class="file-name">{{ file.name }}</div>
+                      <div class="file-meta">
+                        {{ formatFileSize(file.size) }}
+                      </div>
+                    </div>
+
+                    <button
+                      v-if="file.url"
+                      class="file-open-btn"
+                      type="button"
+                      @click.stop="handleFileClick(file)"
+                      title="Открыть в новой вкладке"
+                    >
+                      Открыть
+                    </button>
+                  </div>
+                </div>
+
+                <!-- файлы из структуры (если они где-то используются) -->
+                <div
+                  v-if="subsection.files && subsection.files.length"
+                  class="subsection-files"
+                >
+                  <div
+                    v-for="file in subsection.files"
+                    :key="file.id"
+                    class="file-row"
+                    role="button"
+                    tabindex="0"
+                    @click="handleFileClick(file)"
+                    @keydown.enter.prevent="handleFileClick(file)"
+                  >
+                    <button
+                      class="file-thumb"
+                      v-if="isImage(file.name) && file.url"
+                      type="button"
+                      @click.stop="openImage(file.url, file.name)"
+                    >
+                      <img
+                        :src="normalizeFileUrl(file.url)"
+                        :alt="file.name"
+                        class="thumb-img"
+                      />
+                    </button>
+                    <div class="file-icon" v-else>📄</div>
+
+                    <div class="file-info">
+                      <div class="file-name">{{ file.name }}</div>
+                      <div class="file-meta">
+                        {{ formatFileSize(file.size) }}
+                      </div>
+                    </div>
+
+                    <button
+                      v-if="file.url"
+                      class="file-open-btn"
+                      type="button"
+                      @click.stop="handleFileClick(file)"
+                      title="Открыть в новой вкладке"
+                    >
+                      Открыть
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!sections.length" class="empty-structure">
+            Структура курса пока не настроена.
+          </div>
+        </div>
+      </div>
+
+      <div class="course-stats-panel">
+        <div class="course-stats">
+          <div class="stats-title">Статистика курса</div>
+
+          <!-- Кнопка "Перейти к обсуждению" -->
+          <button type="button" class="discussion-btn" @click="goToDiscussion">
+            Перейти к обсуждению
+          </button>
+
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-content">
+                <div class="stat-value">{{ currentCourse.progress || 0 }}%</div>
+                <div class="stat-label">Прогресс курса</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-content">
+                <div class="stat-value">{{ sections.length }}</div>
+                <div class="stat-label">Разделов</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-content">
+                <div class="stat-value">{{ totalSubsections }}</div>
+                <div class="stat-label">Заданий</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-content">
+                <div class="stat-value">4.8</div>
+                <div class="stat-label">Рейтинг</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="previewImageUrl" class="image-modal" @click.self="closeImage">
+      <div class="image-modal-content">
+        <img :src="previewImageUrl" :alt="previewImageName" />
+        <div class="image-modal-footer">
+          <span class="image-name">{{ previewImageName }}</span>
+          <button class="image-close-btn" type="button" @click="closeImage">
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+
+const API_URL = "http://127.0.0.1:8000/api";
+const API_BASE = "http://127.0.0.1:8000";
+
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+
+const activeSection = ref(1);
+const currentCourse = ref({});
+const sections = ref([]);
+const assignmentsMap = ref({}); // { [subsectionId]: assignment }
+
+const loadAssignmentForSubsection = async (courseId, subsectionId) => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const resp = await fetch(
+      `${API_URL}/assignments?course_id=${courseId}&subsection_id=${subsectionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!resp.ok) return;
+
+    const list = await resp.json();
+    if (Array.isArray(list) && list.length > 0) {
+      const a = list[0];
+
+      // подгружаем attachments
+      const filesResp = await fetch(
+        `${API_URL}/assignments/${a.id}/attachments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        },
+      );
+
+      let attachments = [];
+      if (filesResp.ok) attachments = await filesResp.json();
+
+      assignmentsMap.value = {
+        ...assignmentsMap.value,
+        [subsectionId]: { ...a, attachments: attachments || [] },
+      };
+    }
+  } catch (e) {
+    console.error("loadAssignmentForSubsection error:", e);
+  }
+};
+
+const previewImageUrl = ref(null);
+const previewImageName = ref("");
+
+const totalSubsections = computed(() => {
+  return sections.value.reduce(
+    (total, section) => total + (section.subsections?.length || 0),
+    0,
+  );
+});
+
+const canEdit = computed(() =>
+  ["teacher", "department_head", "admin"].includes(authStore.user?.role),
+);
+
+const goToDiscussion = () => {
+  router.push({
+    name: "Discussions",
+    query: { course_id: String(route.params.id) },
+  });
+};
+
+const toggleSection = (sectionId) => {
+  activeSection.value = activeSection.value === sectionId ? null : sectionId;
+};
+
+const handleEdit = () => {
+  if (!canEdit.value) return;
+  router.push({ name: "CourseViewEdit", params: { id: route.params.id } });
+};
+
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return "0 Б";
+  const k = 1024;
+  const sizes = ["Б", "КБ", "МБ", "ГБ"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+const isImage = (name) => {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return (
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".png") ||
+    lower.endsWith(".gif") ||
+    lower.endsWith(".webp")
+  );
+};
+
+const statusText = (status) => {
+  switch (status) {
+    case "status-completed":
+      return "Завершено";
+    case "status-pending":
+      return "В ожидании";
+    case "status-locked":
+      return "Закрыто";
+    default:
+      return "";
+  }
+};
+
+const normalizeFileUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return url.startsWith("/") ? `${API_BASE}${url}` : `${API_BASE}/${url}`;
+};
+
+const handleFileClick = (file) => {
+  const fullUrl = normalizeFileUrl(file?.url);
+  if (!fullUrl) return;
+  window.open(fullUrl, "_blank", "noopener,noreferrer");
+};
+
+const openImage = (url, name) => {
+  previewImageUrl.value = normalizeFileUrl(url);
+  previewImageName.value = name || "";
+};
+
+const closeImage = () => {
+  previewImageUrl.value = null;
+  previewImageName.value = "";
+};
+
+const loadCourse = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const courseId = route.params.id;
+
+    const coursesResp = await fetch(`${API_URL}/courses`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (coursesResp.ok) {
+      const list = await coursesResp.json();
+      const course = list.find((c) => String(c.id) === String(courseId));
+      if (course) currentCourse.value = course;
+    }
+
+    const structResp = await fetch(`${API_URL}/courses/${courseId}/structure`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (structResp.ok) {
+      const data = await structResp.json();
+      sections.value = data.sections || [];
+
+      // Подгружаем задания для всех подразделов (после загрузки структуры)
+      for (const sec of sections.value) {
+        for (const sub of sec.subsections || []) {
+          await loadAssignmentForSubsection(courseId, sub.id);
+        }
+      }
+
+      if (sections.value.length) {
+        activeSection.value = sections.value[0].id;
+      }
+    } else {
+      sections.value = [];
+    }
+  } catch (e) {
+    console.error("Ошибка загрузки курса/структуры:", e);
+    sections.value = [];
+  }
+};
+
+onMounted(() => {
+  loadCourse();
+});
+</script>
+
+<style scoped>
+.course-detail-page {
+  min-height: calc(100vh - 200px);
+  padding: 2rem;
+  background: linear-gradient(135deg, #f6fbff 0%, #f0f7ff 100%);
+}
+
+/* шапка курса */
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.breadcrumb {
+  margin-bottom: 1rem;
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #2f4156;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(47, 65, 86, 0.08);
+  transition: all 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+  background: #f6fbff;
+  border-color: #2f4156;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.12);
+}
+
+.breadcrumb-icon {
+  font-size: 1.1rem;
+}
+
+/* Изменено: ограничиваем ширину блока с названием курса */
+.header-content {
+  background: #ffffff;
+  padding: 1.25rem 1.75rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+  max-width: 800px; /* Ограничиваем максимальную ширину */
+  width: 100%;
+  flex: 1;
+}
+
+.course-title {
+  font-size: 1.6rem; /* Немного уменьшили размер шрифта */
+  color: #2f4156;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.course-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  background: #f8fafc;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  border: 1px solid #e2e8f0;
+}
+
+.meta-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.dot-progress {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.dot-done {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.meta-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.meta-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.meta-text {
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* основной контент */
+.course-content {
+  display: grid;
+  grid-template-columns: 3fr 1.4fr;
+  gap: 2rem;
+}
+
+/* левая колонка — разделы */
+.course-sections {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+}
+
+.sections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+}
+
+.sections-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin: 0;
+}
+
+.edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #2f4156;
+  background: #ffffff;
+  color: #2f4156;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background: #2f4156;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.2);
+}
+
+/* Кнопка "Перейти к обсуждению" - убрана иконка */
+.discussion-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.discussion-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.discussion-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.discussion-btn:hover::before {
+  left: 100%;
+}
+
+.discussion-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+.sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.section-item {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: #f9fbff;
+  transition: all 0.2s ease;
+}
+
+.section-item.section-active {
+  border-color: #667eea;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.14);
+  background: #f8fbff;
+}
+
+.section-header {
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background: #f0f7ff;
+}
+
+.section-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: baseline;
+}
+
+.section-number {
+  font-weight: 600;
+  color: #2f4156;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.section-name {
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 1rem;
+}
+
+.section-toggle {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 500;
+}
+
+/* задания */
+.subsection-list {
+  padding: 0.7rem 1.1rem 0.9rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.subsection-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  border: 1px solid #e7f0ff;
+}
+
+.subsection-item:hover {
+  background: #edf2f7;
+  transform: translateX(3px);
+  border-color: #cbd5e1;
+}
+
+.subsection-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.subsection-icon {
+  font-size: 1.1rem;
+  margin-top: 0.1rem;
+  color: #667eea;
+}
+
+.subsection-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.subsection-name {
+  font-size: 0.95rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.subsection-description {
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.subsection-status {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-self: center;
+  border: 1px solid transparent;
+}
+
+.status-completed {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #166534;
+  border-color: #86efac;
+}
+
+.status-pending {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.status-locked {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  color: #374151;
+  border-color: #9ca3af;
+}
+
+/* файлы задания */
+.subsection-files {
+  padding-left: 2.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.file-row:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.file-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-thumb:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.file-thumb:hover .thumb-img {
+  transform: scale(1.05);
+}
+
+.file-icon {
+  width: 40px;
+  height: 32px;
+  border-radius: 6px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-open-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #2f4156;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-open-btn:hover {
+  background: #2f4156;
+  color: #ffffff;
+  border-color: #2f4156;
+  transform: translateY(-1px);
+}
+
+.file-name {
+  font-size: 0.9rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.file-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* правая колонка — статистика */
+.course-stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.course-stats {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e7f0ff;
+}
+
+.stats-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2f4156;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f6fbff 0%, #e8f2ff 100%);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.stat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2f4156;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* модалка полноэкранного просмотра изображения */
+.image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  backdrop-filter: blur(4px);
+}
+
+.image-modal-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: modalAppear 0.3s ease-out;
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.image-modal-content img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #020617;
+}
+
+.image-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.image-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+  font-weight: 500;
+}
+
+.image-close-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.image-close-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.empty-structure {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px dashed #d1d5db;
+}
+
+/* адаптив */
+@media (max-width: 992px) {
+  .course-content {
+    grid-template-columns: 1fr;
+  }
+
+  .course-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .header-content {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .course-detail-page {
+    padding: 1.25rem;
+  }
+
+  .course-title {
+    font-size: 1.4rem;
+  }
+
+  .sections-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .subsection-files {
+    padding-left: 1rem;
+  }
+
+  .discussion-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .stat-item {
+    padding: 0.6rem 0.75rem;
+  }
+}
+</style>

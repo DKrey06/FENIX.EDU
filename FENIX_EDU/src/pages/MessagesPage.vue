@@ -1,19 +1,29 @@
 <template>
-  <div class="messenger-page">
-    <div class="main-grid" :class="{ 'with-info-panel': showTeacherInfo }">
-      <aside class="contacts-panel">
+  <div class="messenger-container">
+    <div class="messenger-grid">
+      <!-- Боковая панель с диалогами -->
+      <aside class="threads-panel">
         <div class="panel-header">
-          <button class="back-btn" @click="goBack" title="Назад">
+          <button
+            class="back-btn"
+            @click="goToHome"
+            title="Вернуться на главную"
+          >
             <span class="back-icon">←</span>
           </button>
-          <h2 class="panel-title">Контакты</h2>
+          <h2 class="panel-title">Сообщения</h2>
+          <button class="new-chat-btn" @click="showNewChat = !showNewChat">
+            <span class="btn-icon">+</span>
+            <span class="btn-text">Новый чат</span>
+          </button>
         </div>
 
+        <!-- Поиск -->
         <div class="search-container">
           <div class="search-box">
             <input
               type="text"
-              placeholder="Поиск..."
+              placeholder="Поиск диалогов..."
               class="search-input"
               v-model="searchQuery"
             />
@@ -21,88 +31,151 @@
           </div>
         </div>
 
-        <div class="contacts-list">
+        <!-- Список преподавателей для нового чата -->
+        <div class="new-chat-panel" v-if="showNewChat">
+          <div class="new-chat-header">
+            <h3 class="new-chat-title">Выберите преподавателя</h3>
+            <button class="close-btn" @click="showNewChat = false">×</button>
+          </div>
+          <div class="teachers-search">
+            <input
+              type="text"
+              placeholder="Поиск преподавателей..."
+              class="teachers-search-input"
+              v-model="teacherSearch"
+              @input="searchTeachers"
+            />
+          </div>
+          <div class="teachers-list">
+            <div
+              v-for="teacher in filteredTeachers"
+              :key="teacher.id"
+              class="teacher-item"
+              @click="startNewChat(teacher)"
+            >
+              <div class="teacher-avatar">
+                {{ getAvatarInitials(teacher.full_name) }}
+              </div>
+              <div class="teacher-info">
+                <div class="teacher-name">{{ teacher.full_name }}</div>
+                <div class="teacher-role">{{ formatRole(teacher.role) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Список диалогов -->
+        <div class="threads-list">
           <div
-            v-for="contact in filteredContacts"
-            :key="contact.id"
-            :class="['contact-item', { active: activeContact === contact.id }]"
-            @click="selectContact(contact.id)"
+            v-for="thread in filteredThreads"
+            :key="thread.id"
+            :class="[
+              'thread-item',
+              {
+                active: activeThread?.id === thread.id,
+                unread: thread.unread_count > 0,
+              },
+            ]"
+            @click="selectThread(thread)"
           >
-            <div class="contact-avatar">{{ contact.avatar }}</div>
-            <div class="contact-info">
-              <div class="contact-name">{{ contact.name }}</div>
-              <div class="contact-role">{{ contact.role }}</div>
-              <div class="contact-last-message">{{ contact.lastMessage }}</div>
+            <div class="thread-avatar">{{ thread.teacher_avatar }}</div>
+            <div class="thread-info">
+              <div class="thread-name">{{ thread.teacher_name }}</div>
+              <div class="thread-preview" v-if="thread.last_message">
+                {{ thread.last_message.content }}
+              </div>
             </div>
-            <div class="contact-meta">
-              <span class="contact-time">{{ contact.time }}</span>
-              <span class="unread-badge" v-if="contact.unread">{{
-                contact.unread
+            <div class="thread-meta">
+              <span class="thread-time">{{
+                formatTime(thread.last_message_at)
               }}</span>
+              <span class="unread-badge" v-if="thread.unread_count > 0">
+                {{ thread.unread_count }}
+              </span>
             </div>
+          </div>
+
+          <div class="empty-state" v-if="threads.length === 0">
+            <div class="empty-icon">💬</div>
+            <div class="empty-text">Нет активных диалогов</div>
+            <button class="empty-btn" @click="showNewChat = true">
+              Начать общение
+            </button>
           </div>
         </div>
       </aside>
 
-      <!-- Основной чат -->
-      <main class="chat-main">
+      <!-- Основная область чата -->
+      <main class="chat-area" v-if="activeThread">
         <div class="chat-header">
-          <div class="teacher-info">
-            <div class="teacher-avatar">{{ getCurrentContact()?.avatar }}</div>
-            <div class="teacher-details">
-              <div class="teacher-name">{{ getCurrentContact()?.name }}</div>
-              <div class="teacher-status">
-                <span class="status-indicator online"></span>
-                <span class="status-text">В сети</span>
+          <div class="chat-partner">
+            <div class="partner-avatar">{{ activeThread.partner_avatar }}</div>
+            <div class="partner-info">
+              <div class="partner-name">{{ activeThread.partner_name }}</div>
+              <div class="partner-status">
+                <span
+                  class="status-indicator"
+                  :class="getStatusClass(activeThread)"
+                ></span>
+                <span class="status-text">{{
+                  getStatusText(activeThread)
+                }}</span>
               </div>
             </div>
           </div>
           <div class="chat-actions">
             <button
               class="action-btn"
-              title="Информация"
-              @click="toggleTeacherInfo"
+              title="Архивировать"
+              @click="archiveCurrentThread"
             >
-              <span class="action-icon">ℹ️</span>
+              <span class="action-icon">📁</span>
             </button>
           </div>
         </div>
 
         <!-- Сообщения -->
-        <div class="messages-container" ref="messagesContainer">
-          <div class="messages-wrapper">
+        <!-- Сообщения -->
+        <div class="messages-area" ref="messagesContainer">
+          <div class="messages-list">
             <div
               v-for="message in messages"
               :key="message.id"
-              :class="['message', message.type]"
+              :class="[
+                'message',
+                message.sender_id === authStore.user?.id ? 'sent' : 'received',
+              ]"
             >
-              <div class="message-avatar" v-if="message.type === 'received'">
-                {{ getCurrentContact()?.avatar }}
+              <div
+                class="message-avatar"
+                v-if="message.sender_id !== authStore.user?.id"
+              >
+                {{ getAvatarInitials(message.sender_name) }}
               </div>
               <div class="message-content">
                 <div class="message-header">
-                  <span class="message-author">{{
-                    message.type === "received"
-                      ? getCurrentContact()?.name
-                      : "Вы"
+                  <span class="message-author">{{ message.sender_name }}</span>
+                  <span class="message-time">{{
+                    formatMessageTime(message.created_at)
                   }}</span>
-                  <span class="message-time">{{ message.time }}</span>
                 </div>
-                <div class="message-text">{{ message.text }}</div>
-                <div class="message-status" v-if="message.type === 'sent'">
-                  <span class="status-icon">✓✓</span>
+                <div class="message-text">{{ message.content }}</div>
+                <div
+                  class="message-status"
+                  v-if="message.sender_id === authStore.user?.id"
+                >
+                  <span class="status-icon" :class="{ read: message.is_read }"
+                    >✓✓</span
+                  >
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Поле ввода сообщения -->
-        <div class="message-input-container">
+        <!-- Поле ввода -->
+        <div class="message-input-area">
           <div class="input-wrapper">
-            <button class="tool-btn attach-btn" title="Прикрепить файл">
-              <span class="tool-icon">📎</span>
-            </button>
             <textarea
               v-model="newMessage"
               placeholder="Введите сообщение..."
@@ -122,267 +195,251 @@
         </div>
       </main>
 
-      <!-- Правая боковая панель с информацией о преподавателе (скрыта по умолчанию) -->
-      <aside class="teacher-info-panel" v-if="showTeacherInfo">
-        <div class="panel-header">
-          <h2 class="panel-title">Информация</h2>
-          <button class="close-btn" @click="toggleTeacherInfo">
-            <span class="close-icon">×</span>
+      <!-- Состояние без выбранного диалога -->
+      <main class="chat-area empty-chat" v-else>
+        <div class="empty-chat-content">
+          <div class="empty-chat-icon">💬</div>
+          <div class="empty-chat-title">Выберите диалог</div>
+          <div class="empty-chat-text">
+            Выберите диалог из списка или начните новый разговор с
+            преподавателем
+          </div>
+          <button class="empty-chat-btn" @click="showNewChat = true">
+            Начать новый чат
           </button>
         </div>
-
-        <div class="teacher-profile">
-          <div class="profile-avatar">
-            <div class="avatar-large">{{ getCurrentContact()?.avatar }}</div>
-            <div class="profile-status">
-              <span class="status-indicator online large"></span>
-            </div>
-          </div>
-          <div class="profile-details">
-            <h3 class="profile-name">{{ getCurrentContact()?.name }}</h3>
-            <div class="profile-role">Преподаватель</div>
-          </div>
-        </div>
-
-        <div class="info-sections">
-          <div class="info-section">
-            <h4 class="section-title">
-              <span class="section-icon">📚</span>
-              Дисциплины
-            </h4>
-            <div class="section-content">
-              <div class="discipline-item">
-                <div class="discipline-name">Веб-разработка</div>
-              </div>
-              <div class="discipline-item">
-                <div class="discipline-name">Базы данных</div>
-              </div>
-              <div class="discipline-item">
-                <div class="discipline-name">Алгоритмы</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-section">
-            <h4 class="section-title">
-              <span class="section-icon">🕒</span>
-              Расписание консультаций
-            </h4>
-            <div class="section-content">
-              <div class="schedule-item">
-                <div class="schedule-day">Понедельник</div>
-                <div class="schedule-time">15:00 - 17:00</div>
-              </div>
-              <div class="schedule-item">
-                <div class="schedule-day">Среда</div>
-                <div class="schedule-time">14:00 - 16:00</div>
-              </div>
-              <div class="schedule-item">
-                <div class="schedule-day">Пятница</div>
-                <div class="schedule-time">10:00 - 12:00</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-section">
-            <h4 class="section-title">
-              <span class="section-icon">📞</span>
-              Контакты
-            </h4>
-            <div class="section-content">
-              <div class="contact-info-item">
-                <span class="contact-icon">📧</span>
-                <span class="contact-text">teacher@fenixedu.ru</span>
-              </div>
-              <div class="contact-info-item">
-                <span class="contact-icon">📱</span>
-                <span class="contact-text">+7 (XXX) XXX-XX-XX</span>
-              </div>
-              <div class="contact-info-item">
-                <span class="contact-icon">🏢</span>
-                <span class="contact-text">Каб. 305, корпус А</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel-footer">
-          <button class="btn btn-schedule" @click="openSchedule">
-            <span class="btn-icon">📅</span>
-            <span class="btn-text">Записаться на консультацию</span>
-          </button>
-        </div>
-      </aside>
+      </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { useMessengerStore } from "@/stores/messenger";
+import { useAuthStore } from "@/stores/auth";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
 import { useRouter } from "vue-router";
 
+const messengerStore = useMessengerStore();
+const authStore = useAuthStore();
 const router = useRouter();
 
-const activeContact = ref(1);
+// Реактивные переменные
+const activeThread = ref(null);
 const newMessage = ref("");
+const showNewChat = ref(false);
+const searchQuery = ref("");
+const teacherSearch = ref("");
+const teachers = ref([]);
 const messagesContainer = ref(null);
 const messageInput = ref(null);
-const showTeacherInfo = ref(false);
-const searchQuery = ref("");
 
-const contacts = ref([
-  {
-    id: 1,
-    avatar: "👨‍🏫",
-    name: "Преподаватель 1",
-    role: "Доцент",
-    lastMessage: "Добрый день! Как успехи с заданием?",
-    time: "15:30",
-    unread: 2,
-  },
-  {
-    id: 2,
-    avatar: "👩‍🏫",
-    name: "Преподаватель 2",
-    role: "Профессор",
-    lastMessage: "Проверьте, пожалуйста, задание №3",
-    time: "14:45",
-    unread: 0,
-  },
-  {
-    id: 3,
-    avatar: "👨‍🏫",
-    name: "Преподаватель 3",
-    role: "Старший преподаватель",
-    lastMessage: "Вопрос по лекции №5",
-    time: "12:20",
-    unread: 1,
-  },
-  {
-    id: 4,
-    avatar: "👨‍🎓",
-    name: "Студент Иванов",
-    role: "Одногруппник",
-    lastMessage: "Привет! Поможешь с лабой?",
-    time: "11:15",
-    unread: 0,
-  },
-  {
-    id: 5,
-    avatar: "👩‍🎓",
-    name: "Студент Петрова",
-    role: "Одногруппница",
-    lastMessage: "Спасибо за помощь!",
-    time: "10:30",
-    unread: 0,
-  },
-]);
+// Загрузка данных при монтировании
+onMounted(async () => {
+  await loadThreads();
+  await loadTeachers();
 
-const messages = ref([
-  { id: 1, text: "Добрый день! Как дела?", type: "received", time: "15:25" },
-  {
-    id: 2,
-    text: "Привет! Все хорошо, спасибо! А как у вас?",
-    type: "sent",
-    time: "15:26",
-  },
-  {
-    id: 3,
-    text: "Отлично! Есть вопросы по последней лекции?",
-    type: "received",
-    time: "15:28",
-  },
-  {
-    id: 4,
-    text: 'Да, есть вопрос по теме "Введение в Vue.js" - не совсем понял про компоненты',
-    type: "sent",
-    time: "15:29",
-  },
-  {
-    id: 5,
-    text: "Хорошо, объясню на следующем занятии. Если что-то срочное - пишите!",
-    type: "received",
-    time: "15:30",
-  },
-]);
+  if (route.query.thread) {
+    const threadId = parseInt(route.query.thread);
+    const thread = messengerStore.threads.find((t) => t.id === threadId);
+    if (thread) {
+      await selectThread(thread);
+    }
+  }
+});
 
-const filteredContacts = computed(() => {
+// Загрузка диалогов
+const loadThreads = async () => {
+  try {
+    await messengerStore.fetchThreads();
+  } catch (error) {
+    console.error("Ошибка загрузки диалогов:", error);
+  }
+};
+
+// Загрузка преподавателей
+const loadTeachers = async () => {
+  try {
+    const response = await messengerStore.fetchTeachers();
+    teachers.value = response.teachers || [];
+  } catch (error) {
+    console.error("Ошибка загрузки преподавателей:", error);
+  }
+};
+
+// Поиск преподавателей
+const searchTeachers = async () => {
+  try {
+    const response = await messengerStore.fetchTeachers(teacherSearch.value);
+    teachers.value = response.teachers || [];
+  } catch (error) {
+    console.error("Ошибка поиска преподавателей:", error);
+  }
+};
+
+// Функция для возврата на главную
+const goToHome = () => {
+  router.push("/");
+};
+
+// Отфильтрованные диалоги
+const filteredThreads = computed(() => {
   if (!searchQuery.value.trim()) {
-    return contacts.value;
+    return messengerStore.threads;
   }
 
   const query = searchQuery.value.toLowerCase();
-  return contacts.value.filter(
-    (contact) =>
-      contact.name.toLowerCase().includes(query) ||
-      contact.role.toLowerCase().includes(query) ||
-      contact.lastMessage.toLowerCase().includes(query)
+  return messengerStore.threads.filter(
+    (thread) =>
+      thread.teacher_name.toLowerCase().includes(query) ||
+      (thread.last_message?.content || "").toLowerCase().includes(query),
   );
 });
 
-const getCurrentContact = () => {
-  return contacts.value.find((c) => c.id === activeContact.value);
-};
+// Отфильтрованные преподаватели
+const filteredTeachers = computed(() => {
+  return teachers.value.filter((teacher) => teacher.id !== authStore.user?.id);
+});
 
-const selectContact = (contactId) => {
-  activeContact.value = contactId;
-  const contact = contacts.value.find((c) => c.id === contactId);
-  if (contact) {
-    contact.unread = 0;
-  }
-  scrollToBottom();
-  if (showTeacherInfo.value) {
-    showTeacherInfo.value = false;
-  }
-};
-
-const sendMessage = () => {
-  if (!newMessage.value.trim()) return;
-
-  const newMsg = {
-    id: messages.value.length + 1,
-    text: newMessage.value,
-    type: "sent",
-    time: new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+// Выбор диалога
+const selectThread = async (thread) => {
+  // Используем partner_name и partner_avatar для отображения в заголовке
+  activeThread.value = {
+    id: thread.id,
+    teacher_id: thread.teacher_id,
+    teacher_name: thread.partner_name || thread.teacher_name,
+    teacher_avatar:
+      thread.partner_avatar ||
+      thread.teacher_avatar ||
+      getAvatarInitials(thread.partner_name || thread.teacher_name),
+    partner_name: thread.partner_name || thread.teacher_name,
+    partner_id: thread.partner_id || thread.teacher_id,
   };
 
-  messages.value.push(newMsg);
-  newMessage.value = "";
-
-  setTimeout(() => {
-    const responses = [
-      "Спасибо за сообщение! Я отвечу вам в ближайшее время.",
-      "Понял ваш вопрос. Давайте обсудим на следующей консультации.",
-      "Интересный вопрос! Пришлите, пожалуйста, более подробное описание.",
-      "Хорошо, я учту ваше замечание.",
-      "Спасибо за обратную связь!",
-    ];
-
-    const randomResponse =
-      responses[Math.floor(Math.random() * responses.length)];
-
-    const teacherResponse = {
-      id: messages.value.length + 1,
-      text: randomResponse,
-      type: "received",
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-    messages.value.push(teacherResponse);
-    scrollToBottom();
-  }, 1000);
-
+  await messengerStore.fetchThreadMessages(thread.id);
+  await messengerStore.markAsRead(thread.id);
   scrollToBottom();
-  resizeTextarea();
 };
 
-const toggleTeacherInfo = () => {
-  showTeacherInfo.value = !showTeacherInfo.value;
+// Начать новый чат
+const startNewChat = async (teacher) => {
+  showNewChat.value = false;
+  teacherSearch.value = "";
+
+  // Ищем существующий диалог
+  const existingThread = messengerStore.threads.find(
+    (t) => t.teacher_id === teacher.id,
+  );
+
+  if (existingThread) {
+    await selectThread(existingThread);
+  } else {
+    // Создаем новый диалог
+    newMessage.value = `Здравствуйте! Меня зовут ${authStore.user?.full_name}. `;
+    activeThread.value = {
+      id: null,
+      teacher_id: teacher.id,
+      teacher_name: teacher.full_name,
+      teacher_avatar: getAvatarInitials(teacher.full_name),
+    };
+
+    nextTick(() => {
+      messageInput.value?.focus();
+    });
+  }
+};
+
+// Отправить сообщение
+const sendMessage = async () => {
+  if (!newMessage.value.trim()) return;
+
+  try {
+    if (activeThread.value.id) {
+      // Отправляем ответ в существующий диалог
+      await messengerStore.sendReply(activeThread.value.id, newMessage.value);
+    } else {
+      // Создаем новый диалог
+      const message = await messengerStore.sendMessage(
+        activeThread.value.teacher_id,
+        newMessage.value,
+      );
+
+      // Обновляем активный диалог
+      activeThread.value = {
+        ...activeThread.value,
+        id: message.thread_id,
+      };
+
+      // Перезагружаем список диалогов
+      await loadThreads();
+    }
+
+    newMessage.value = "";
+    scrollToBottom();
+  } catch (error) {
+    console.error("Ошибка отправки сообщения:", error);
+  }
+};
+
+// Архивировать текущий диалог
+const archiveCurrentThread = async () => {
+  if (activeThread.value?.id) {
+    await messengerStore.archiveThread(activeThread.value.id);
+    activeThread.value = null;
+    await loadThreads();
+  }
+};
+
+// Вспомогательные функции
+const getAvatarInitials = (name) => {
+  if (!name) return "👤";
+  const parts = name.split(" ");
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const formatRole = (role) => {
+  const roles = {
+    student: "Студент",
+    teacher: "Преподаватель",
+    department_head: "Зав. кафедрой",
+    admin: "Администратор",
+  };
+  return roles[role] || role;
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+
+  if (date.toDateString() === now.toDateString()) {
+    return format(date, "HH:mm");
+  }
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return format(date, "d MMM", { locale: ru });
+  }
+
+  return format(date, "dd.MM.yy");
+};
+
+const formatMessageTime = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return format(date, "HH:mm");
+};
+
+const getStatusClass = (thread) => {
+  // Здесь можно добавить логику определения статуса онлайн/офлайн
+  return "online";
+};
+
+const getStatusText = (thread) => {
+  return "В сети";
 };
 
 const scrollToBottom = () => {
@@ -393,107 +450,82 @@ const scrollToBottom = () => {
   });
 };
 
-const resizeTextarea = () => {
-  nextTick(() => {
-    if (messageInput.value) {
-      messageInput.value.style.height = "auto";
-      messageInput.value.style.height =
-        Math.min(messageInput.value.scrollHeight, 120) + "px";
-    }
-  });
-};
+// Компьютед-переменные для доступа к данным хранилища
+const messages = computed(() => messengerStore.messages);
+const threads = computed(() => messengerStore.threads);
 
-const openSchedule = () => {
-  alert(
-    "Функция записи на консультацию будет доступна в следующем обновлении!"
-  );
-};
-
-const goBack = () => {
-  router.back();
-};
-
-onMounted(() => {
-  scrollToBottom();
-  if (messageInput.value) {
-    messageInput.value.addEventListener("input", resizeTextarea);
-  }
-});
+// Наблюдаем за изменениями в сообщениях
+watch(
+  () => messengerStore.messages,
+  () => {
+    scrollToBottom();
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped>
-.messenger-page {
-  min-height: calc(100vh - 120px);
+.messenger-container {
+  height: calc(100vh - 120px);
   padding: 2rem;
   background: #e7e7ec;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
 }
 
-.main-grid {
+.messenger-grid {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 350px 1fr;
   gap: 1.5rem;
-  max-width: 1600px;
+  height: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  height: 85vh;
-  min-height: 550px;
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
 }
 
-.main-grid.with-info-panel {
-  grid-template-columns: 320px 1fr 320px;
-}
-
-.contacts-panel {
+.threads-panel {
   background: #f5d6d8;
   border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: 0 8px 30px rgba(212, 185, 187, 0.3);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(212, 185, 187, 0.4);
-  position: relative;
-  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(212, 185, 187, 0.3);
 }
 
 .panel-header {
-  margin-bottom: 1.25rem;
-  flex-shrink: 0;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  position: relative;
+  margin-bottom: 1.5rem;
+  gap: 0.75rem;
 }
 
 .back-btn {
+  background: #2f4156;
+  color: white;
+  border: none;
+  border-radius: 10px;
   width: 40px;
   height: 40px;
-  background: white;
-  border: 2px solid rgba(47, 65, 86, 0.1);
-  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  color: #2f4156;
-  line-height: 1;
+  font-weight: 600;
+  transition: all 0.3s;
   flex-shrink: 0;
 }
 
 .back-btn:hover {
-  background: #2f4156;
-  color: white;
-  transform: translateX(-2px);
+  background: #1a2530;
+  transform: translateY(-2px);
+}
+
+.back-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
 }
 
 .panel-title {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   color: #2f4156;
   font-weight: 700;
   margin: 0;
@@ -501,10 +533,27 @@ onMounted(() => {
   text-align: center;
 }
 
+.new-chat-btn {
+  background: #2f4156;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.new-chat-btn:hover {
+  background: #1a2530;
+  transform: translateY(-2px);
+}
+
 .search-container {
-  margin-bottom: 1.25rem;
-  width: 100%;
-  flex-shrink: 0;
+  margin-bottom: 1.5rem;
 }
 
 .search-box {
@@ -513,119 +562,184 @@ onMounted(() => {
   border-radius: 12px;
   overflow: hidden;
   border: 2px solid rgba(212, 185, 187, 0.4);
-  width: 100%;
 }
 
 .search-input {
   flex: 1;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 1rem;
   border: none;
   outline: none;
   background: transparent;
-  color: #2f4156;
   font-size: 0.95rem;
-  width: 100%;
-  min-width: 0;
-}
-
-.search-input::placeholder {
-  color: #a0aec0;
 }
 
 .search-btn {
   background: #d3a5b1;
   color: #2f4156;
   border: none;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   cursor: pointer;
-  transition: background 0.3s;
-  flex-shrink: 0;
-  width: 50px;
 }
 
-.search-btn:hover {
-  background: #c895a3;
+.new-chat-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #2f4156;
 }
 
-.contacts-list {
-  flex: 1;
-  overflow-y: auto;
+.new-chat-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-height: 0;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
-.contact-item {
+.new-chat-title {
+  font-size: 1.1rem;
+  color: #2f4156;
+  font-weight: 600;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #2f4156;
+}
+
+.teachers-search-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e7e7ec;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.teachers-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.teacher-item {
   display: flex;
   align-items: center;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
+  padding: 0.75rem;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  gap: 1rem;
-  border: 2px solid transparent;
-  min-width: 0;
+  transition: background 0.3s;
+  gap: 0.75rem;
 }
 
-.contact-item:hover {
-  background: white;
+.teacher-item:hover {
+  background: #f5d6d8;
 }
 
-.contact-item.active {
-  background: white;
-  border-color: #2f4156;
-  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.15);
-}
-
-.contact-avatar {
-  width: 52px;
-  height: 52px;
+.teacher-avatar {
+  width: 40px;
+  height: 40px;
   background: #d3a5b1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
-.contact-info {
+.teacher-info {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
 }
 
-.contact-name {
+.teacher-name {
   font-weight: 600;
   color: #2f4156;
   margin-bottom: 0.25rem;
-  font-size: 1rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.contact-role {
-  font-size: 0.8rem;
-  color: #667eea;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.contact-last-message {
+.teacher-role {
   font-size: 0.85rem;
+  color: #667eea;
+}
+
+.threads-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.thread-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  gap: 1rem;
+  border: 2px solid transparent;
+}
+
+.thread-item:hover {
+  background: white;
+  transform: translateX(5px);
+}
+
+.thread-item.active {
+  background: white;
+  border-color: #2f4156;
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.15);
+}
+
+.thread-item.unread {
+  background: rgba(47, 65, 86, 0.05);
+}
+
+.thread-avatar {
+  width: 50px;
+  height: 50px;
+  background: #2f4156;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.thread-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-name {
+  font-weight: 600;
+  color: #2f4156;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thread-preview {
+  font-size: 0.9rem;
   color: #718096;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.contact-meta {
+.thread-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -633,10 +747,9 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.contact-time {
-  font-size: 0.75rem;
+.thread-time {
+  font-size: 0.8rem;
   color: #a0aec0;
-  white-space: nowrap;
 }
 
 .unread-badge {
@@ -648,67 +761,135 @@ onMounted(() => {
   font-weight: 600;
   min-width: 20px;
   text-align: center;
-  flex-shrink: 0;
 }
 
-.chat-main {
-  background: #f6fbff;
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-text {
+  color: #718096;
+  margin-bottom: 1.5rem;
+}
+
+.empty-btn {
+  background: #2f4156;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.empty-btn:hover {
+  background: #1a2530;
+  transform: translateY(-2px);
+}
+
+.chat-area {
+  background: white;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 30px rgba(200, 218, 232, 0.3);
   border: 1px solid rgba(200, 218, 232, 0.4);
+  box-shadow: 0 8px 30px rgba(200, 218, 232, 0.3);
   overflow: hidden;
-  position: relative;
-  min-height: 0;
+}
+
+.chat-area.empty-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-chat-content {
+  text-align: center;
+  padding: 3rem;
+}
+
+.empty-chat-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+}
+
+.empty-chat-title {
+  font-size: 1.5rem;
+  color: #2f4156;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.empty-chat-text {
+  color: #718096;
+  margin-bottom: 2rem;
+  max-width: 300px;
+}
+
+.empty-chat-btn {
+  background: #2f4156;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.empty-chat-btn:hover {
+  background: #1a2530;
+  transform: translateY(-2px);
 }
 
 .chat-header {
   background: #daefff;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(200, 218, 232, 0.4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
+  border-bottom: 1px solid rgba(200, 218, 232, 0.4);
 }
 
-.teacher-info {
+.chat-partner {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.teacher-avatar {
-  width: 54px;
-  height: 54px;
+.partner-avatar {
+  width: 50px;
+  height: 50px;
   background: #2f4156;
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
-  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 1.1rem;
 }
 
-.teacher-details {
+.partner-info {
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
-.teacher-name {
-  font-size: 1.3rem;
+.partner-name {
+  font-size: 1.25rem;
   font-weight: 700;
   color: #2f4156;
   margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.teacher-status {
+.partner-status {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -717,8 +898,11 @@ onMounted(() => {
 .status-indicator {
   width: 10px;
   height: 10px;
-  background: #48bb78;
   border-radius: 50%;
+}
+
+.status-indicator.online {
+  background: #48bb78;
 }
 
 .status-text {
@@ -729,42 +913,34 @@ onMounted(() => {
 .chat-actions {
   display: flex;
   gap: 0.5rem;
-  flex-shrink: 0;
 }
 
 .action-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   background: white;
   border: 2px solid rgba(47, 65, 86, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
 .action-btn:hover {
   background: #2f4156;
   color: white;
-  transform: translateY(-2px);
 }
 
-.action-icon {
-  font-size: 1.2rem;
-}
-
-.messages-container {
+.messages-area {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
   background: #f6fbff;
-  min-height: 0;
 }
 
-.messages-wrapper {
+.messages-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -786,17 +962,18 @@ onMounted(() => {
 }
 
 .message-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: #2f4156;
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
   flex-shrink: 0;
-  margin-top: 0.25rem;
 }
 
 .message.sent .message-avatar {
@@ -808,19 +985,16 @@ onMounted(() => {
   border-radius: 16px;
   padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  position: relative;
-  min-width: 160px;
-  max-width: 100%;
-}
-
-.message.received .message-content {
-  border-bottom-left-radius: 4px;
 }
 
 .message.sent .message-content {
   background: #2f4156;
   color: white;
   border-bottom-right-radius: 4px;
+}
+
+.message.received .message-content {
+  border-bottom-left-radius: 4px;
 }
 
 .message-header {
@@ -830,8 +1004,6 @@ onMounted(() => {
   margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid rgba(47, 65, 86, 0.1);
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 .message.sent .message-header {
@@ -840,9 +1012,7 @@ onMounted(() => {
 
 .message-author {
   font-weight: 600;
-  font-size: 0.95rem;
-  color: #2f4156;
-  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .message.sent .message-author {
@@ -852,7 +1022,6 @@ onMounted(() => {
 .message-time {
   font-size: 0.8rem;
   color: #a0aec0;
-  white-space: nowrap;
 }
 
 .message.sent .message-time {
@@ -860,7 +1029,7 @@ onMounted(() => {
 }
 
 .message-text {
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.5;
   margin-bottom: 0.5rem;
   word-break: break-word;
@@ -868,46 +1037,28 @@ onMounted(() => {
 
 .message-status {
   text-align: right;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
 }
 
-.message-input-container {
+.status-icon {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.status-icon.read {
+  color: #48bb78;
+  opacity: 1;
+}
+
+.message-input-area {
   padding: 1.25rem 1.5rem;
-  background: white;
   border-top: 1px solid rgba(200, 218, 232, 0.4);
-  flex-shrink: 0;
+  background: white;
 }
 
 .input-wrapper {
   display: flex;
   gap: 0.75rem;
   align-items: flex-end;
-}
-
-.attach-btn {
-  width: 50px;
-  height: 50px;
-  background: rgba(47, 65, 86, 0.05);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  align-self: flex-end;
-  margin-bottom: 2px;
-}
-
-.attach-btn:hover {
-  background: rgba(47, 65, 86, 0.1);
-  transform: translateY(-2px);
-}
-
-.tool-icon {
-  font-size: 1.1rem;
 }
 
 .message-input {
@@ -918,13 +1069,10 @@ onMounted(() => {
   resize: none;
   font-family: inherit;
   font-size: 1rem;
-  color: #2f4156;
-  background: white;
-  outline: none;
+  min-height: 50px;
   max-height: 120px;
   line-height: 1.5;
-  min-height: 50px;
-  min-width: 0;
+  outline: none;
 }
 
 .message-input:focus {
@@ -932,8 +1080,8 @@ onMounted(() => {
 }
 
 .send-btn {
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   background: #2f4156;
   color: white;
   border: none;
@@ -943,14 +1091,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   align-self: flex-end;
   margin-bottom: 2px;
 }
 
 .send-btn:hover:not(:disabled) {
   background: #1a2530;
-  transform: translateY(-2px);
 }
 
 .send-btn:disabled {
@@ -958,365 +1104,46 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.send-icon {
-  font-size: 1.3rem;
-  transform: rotate(45deg);
-}
-
-.teacher-info-panel {
-  background: #f5d6d8;
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 30px rgba(212, 185, 187, 0.3);
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(212, 185, 187, 0.4);
-  position: relative;
-  overflow: hidden;
-  height: 85vh;
-  min-height: 550px;
-  animation: slideInRight 0.3s ease-out;
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  flex-shrink: 0;
-}
-
-.close-btn {
-  width: 40px;
-  height: 40px;
-  background: white;
-  border: 2px solid rgba(47, 65, 86, 0.1);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: #2f4156;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.close-btn:hover {
-  background: #2f4156;
-  color: white;
-  transform: rotate(90deg);
-}
-
-.teacher-profile {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(212, 185, 187, 0.4);
-  flex-shrink: 0;
-}
-
-.profile-avatar {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 1rem;
-}
-
-.avatar-large {
-  width: 90px;
-  height: 90px;
-  background: #d3a5b1;
-  color: #2f4156;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.8rem;
-  margin: 0 auto;
-}
-
-.profile-status {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-}
-
-.profile-details {
-  text-align: center;
-}
-
-.profile-name {
-  font-size: 1.6rem;
-  color: #2f4156;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.profile-role {
-  font-size: 1.1rem;
-  color: #667eea;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.info-sections {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  min-height: 0;
-}
-
-.info-section {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
-  padding: 1.25rem;
-}
-
-.section-title {
-  font-size: 1.1rem;
-  color: #2f4156;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.section-icon {
-  font-size: 1.2rem;
-}
-
-.section-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.discipline-item,
-.schedule-item,
-.contact-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: white;
-  border-radius: 10px;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.discipline-item {
-  justify-content: flex-start;
-}
-
-.discipline-name {
-  font-weight: 500;
-  color: #2f4156;
-  font-size: 1rem;
-}
-
-.schedule-day {
-  font-weight: 500;
-  color: #2f4156;
-  font-size: 1rem;
-}
-
-.schedule-time {
-  font-size: 0.9rem;
-  color: #667eea;
-  font-weight: 600;
-}
-
-.contact-info-item {
-  justify-content: flex-start;
-  gap: 0.75rem;
-}
-
-.contact-icon {
-  font-size: 1.1rem;
-  width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.contact-text {
-  font-size: 0.95rem;
-  color: #2f4156;
-}
-
-.panel-footer {
-  margin-top: auto;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(212, 185, 187, 0.4);
-  flex-shrink: 0;
-}
-
-.btn-schedule {
-  width: 100%;
-  padding: 1rem;
-  background: #2f4156;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.btn-schedule:hover {
-  background: #1a2530;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.3);
-}
-
-.btn-icon {
-  font-size: 1.2rem;
-}
-
-.btn-text {
-  font-size: 1rem;
-}
-
-/* Адаптивность */
-@media (max-width: 1400px) {
-  .main-grid {
+@media (max-width: 1024px) {
+  .messenger-grid {
     grid-template-columns: 300px 1fr;
-  }
-
-  .main-grid.with-info-panel {
-    grid-template-columns: 300px 1fr 300px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .main-grid {
-    grid-template-columns: 280px 1fr;
-    height: 80vh;
-  }
-
-  .main-grid.with-info-panel {
-    grid-template-columns: 280px 1fr 280px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .main-grid.with-info-panel {
-    grid-template-columns: 280px 1fr;
-  }
-
-  .teacher-info-panel {
-    position: fixed;
-    top: 50%;
-    right: 2rem;
-    transform: translateY(-50%);
-    width: 350px;
-    max-width: calc(100% - 4rem);
-    max-height: 85vh;
-    z-index: 1000;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   }
 }
 
 @media (max-width: 768px) {
-  .messenger-page {
+  .messenger-container {
     padding: 1rem;
-    min-height: calc(100vh - 100px);
+    height: calc(100vh - 100px);
   }
 
-  .main-grid {
+  .messenger-grid {
     grid-template-columns: 1fr;
-    height: calc(100vh - 150px);
-    min-height: 500px;
   }
 
-  .contacts-panel {
+  .threads-panel {
     display: none;
   }
 
+  .chat-area.empty-chat .empty-chat-content {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
   .chat-header {
     padding: 1rem;
   }
 
-  .messages-container {
+  .messages-area {
     padding: 1rem;
   }
 
-  .message-input-container {
+  .message-input-area {
     padding: 1rem;
   }
 
   .message {
     max-width: 90%;
-  }
-
-  .teacher-info-panel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 95%;
-    max-width: 500px;
-    max-height: 90vh;
-    z-index: 1000;
-  }
-
-  .main-grid.with-info-panel {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .teacher-name {
-    font-size: 1.2rem;
-  }
-
-  .message-content {
-    padding: 0.875rem;
-  }
-
-  .message-text {
-    font-size: 0.95rem;
-  }
-
-  .input-wrapper {
-    gap: 0.5rem;
-  }
-
-  .attach-btn {
-    width: 46px;
-    height: 46px;
-  }
-
-  .send-btn {
-    width: 46px;
-    height: 46px;
-  }
-
-  .search-box {
-    width: 100%;
-  }
-
-  .search-input {
-    width: calc(100% - 50px);
   }
 }
 </style>
